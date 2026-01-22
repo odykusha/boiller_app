@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Бойлер Монітор</string>
+    <string name="battery">Батарея</string>
+    <string name="grid">Мережа</string>
+    <string name="home">Дім</string>
+    <string name="last_update">Останнє оновлення:</string>
+    <string name="no_data">Немає даних</string>
+    <string name="loading">Завантаження...</string>
+    <string name="error_loading">Помилка завантаження</string>
+    <string name="settings">Налаштування</string>
+    <string name="server_url">URL сервера</string>
+    <string name="save">Зберегти</string>
+    <string name="refresh">Оновити</string>
+    <string name="percent">%</string>
+    <string name="watt">Вт</string>
+</resources>
