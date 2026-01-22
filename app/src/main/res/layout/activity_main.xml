@@ -18,9 +18,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/card_background"
             app:title="Інвертор - Моніторинг"
-            app:titleTextColor="@color/primary_blue"
-            app:navigationIcon="@drawable/ic_settings"
-            app:navigationIconTint="@color/primary_blue" />
+            app:titleTextColor="@color/primary_blue" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

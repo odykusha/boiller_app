@@ -1,11 +1,17 @@
 package com.boiller.monitor
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.boiller.monitor.api.ApiClient
 import com.boiller.monitor.api.DataRecord
@@ -40,6 +46,25 @@ class MainActivity : AppCompatActivity() {
         
         // Автоматичне оновлення кожні 60 секунд
         startAutoRefresh()
+        
+        // Перевіряємо дозволи для нотифікацій
+        checkNotificationPermission()
+        
+        // Запускаємо сервіс нотифікацій
+        NotificationService.startService(this)
+    }
+    
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1
+                )
+            }
+        }
     }
     
     private fun setupCharts() {
@@ -80,11 +105,23 @@ class MainActivity : AppCompatActivity() {
         chart.setNoDataTextColor(getColor(R.color.text_secondary))
     }
     
-    private fun setupClickListeners() {
-        binding.toolbar.setNavigationOnClickListener {
-            showSettingsDialog()
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+    
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                val intent = android.content.Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
-        
+    }
+    
+    private fun setupClickListeners() {
         binding.fabRefresh.setOnClickListener {
             loadData()
         }
@@ -102,7 +139,7 @@ class MainActivity : AppCompatActivity() {
                     if (data.isNotEmpty()) {
                         updateCharts(data)
                         updateStats(data.last())
-                        binding.statusText.text = "Останнє оновлення: ${DateFormatter.formatDateTime(data.last().timestamp)}"
+                        binding.statusText.text = "Останнє оновлення: ${DateFormatter.formatTime(data.last().timestamp)}"
                     } else {
                         binding.statusText.text = "Немає даних"
                     }
@@ -131,7 +168,6 @@ class MainActivity : AppCompatActivity() {
             color = getColor(R.color.battery_color)
             setCircleColor(getColor(R.color.battery_color))
             lineWidth = 2f
-            circleRadius = 0f
             setDrawCircles(false)
             setDrawFilled(true)
             fillColor = getColor(R.color.battery_color)
@@ -155,7 +191,6 @@ class MainActivity : AppCompatActivity() {
             color = getColor(R.color.grid_color)
             setCircleColor(getColor(R.color.grid_color))
             lineWidth = 2f
-            circleRadius = 0f
             setDrawCircles(false)
             setDrawFilled(true)
             fillColor = getColor(R.color.grid_color)
@@ -179,7 +214,6 @@ class MainActivity : AppCompatActivity() {
             color = getColor(R.color.home_color)
             setCircleColor(getColor(R.color.home_color))
             lineWidth = 2f
-            circleRadius = 0f
             setDrawCircles(false)
             setDrawFilled(true)
             fillColor = getColor(R.color.home_color)
@@ -260,5 +294,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         refreshTimer?.cancel()
+        // Не зупиняємо сервіс - він має працювати постійно
     }
 }

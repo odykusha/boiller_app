@@ -11,7 +11,11 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
     private const val PREFS_NAME = "boiller_prefs"
     private const val KEY_SERVER_URL = "server_url"
-    private const val DEFAULT_SERVER_URL = "http://192.168.50.160:5000/"
+    private const val KEY_NOTIFICATION_START_HOUR = "notification_start_hour"
+    private const val KEY_NOTIFICATION_END_HOUR = "notification_end_hour"
+    private const val DEFAULT_SERVER_URL = "http://192.168.50.100:8080/"
+    private const val DEFAULT_NOTIFICATION_START_HOUR = 8
+    private const val DEFAULT_NOTIFICATION_END_HOUR = 22
     
     private var retrofit: Retrofit? = null
     
@@ -54,5 +58,23 @@ object ApiClient {
     
     private fun getBaseUrl(context: Context): String {
         return getServerUrl(context)
+    }
+    
+    fun getNotificationStartHour(context: Context): Int {
+        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_NOTIFICATION_START_HOUR, DEFAULT_NOTIFICATION_START_HOUR)
+    }
+    
+    fun getNotificationEndHour(context: Context): Int {
+        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_NOTIFICATION_END_HOUR, DEFAULT_NOTIFICATION_END_HOUR)
+    }
+    
+    fun setNotificationHours(context: Context, startHour: Int, endHour: Int) {
+        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt(KEY_NOTIFICATION_START_HOUR, startHour)
+            .putInt(KEY_NOTIFICATION_END_HOUR, endHour)
+            .apply()
     }
 }
