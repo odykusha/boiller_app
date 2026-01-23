@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +32,11 @@ import java.util.TimerTask
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var refreshTimer: Timer? = null
+    private var currentData: List<DataRecord> = emptyList()
+    private var batteryMarker: CustomMarker? = null
+    private var gridMarker: CustomMarker? = null
+    private var homeMarker: CustomMarker? = null
+    private lateinit var toolbarUpdateTime: android.widget.TextView
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +45,21 @@ class MainActivity : AppCompatActivity() {
         
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        
+        // Додаємо TextView для дати оновлення в toolbar
+        toolbarUpdateTime = TextView(this).apply {
+            text = "-"
+            setTextColor(getColor(R.color.text_secondary))
+            textSize = 14f
+            layoutParams = androidx.appcompat.widget.Toolbar.LayoutParams(
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
+                androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
+                marginEnd = resources.getDimensionPixelSize(android.R.dimen.app_icon_size) / 2
+            }
+        }
+        binding.toolbar.addView(toolbarUpdateTime)
         
         setupCharts()
         setupClickListeners()
@@ -97,12 +118,34 @@ class MainActivity : AppCompatActivity() {
         leftAxis.setDrawGridLines(true)
         leftAxis.gridColor = getColor(R.color.text_secondary)
         leftAxis.axisLineColor = getColor(R.color.text_secondary)
+        leftAxis.axisMinimum = 0f // Мінімальне значення - 0, графік не буде йти нижче нуля
         
         val rightAxis = chart.axisRight
         rightAxis.isEnabled = false
         
         chart.setNoDataText("Немає даних")
         chart.setNoDataTextColor(getColor(R.color.text_secondary))
+        
+        // Додаємо обробники для приховування маркерів на інших графіках
+        chart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: com.github.mikephil.charting.highlight.Highlight?) {
+                // Ховаємо маркери на інших графіках
+                hideMarkersOnOtherCharts(chart)
+            }
+            
+            override fun onNothingSelected() {
+                // Можна залишити порожнім або ховати всі маркери
+            }
+        })
+    }
+    
+    private fun hideMarkersOnOtherCharts(activeChart: com.github.mikephil.charting.charts.LineChart) {
+        val charts = listOf(binding.batteryChart, binding.gridChart, binding.homeChart)
+        charts.forEach { chart ->
+            if (chart != activeChart) {
+                chart.highlightValue(null, false)
+            }
+        }
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -130,7 +173,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadData() {
         lifecycleScope.launch {
             try {
-                binding.statusText.text = "Завантаження..."
+                toolbarUpdateTime.text = "Завантаження..."
                 val apiService = ApiClient.getApiService(this@MainActivity)
                 val response = apiService.getData()
                 
@@ -139,16 +182,16 @@ class MainActivity : AppCompatActivity() {
                     if (data.isNotEmpty()) {
                         updateCharts(data)
                         updateStats(data.last())
-                        binding.statusText.text = "Останнє оновлення: ${DateFormatter.formatTime(data.last().timestamp)}"
+                        toolbarUpdateTime.text = DateFormatter.formatTime(data.last().timestamp)
                     } else {
-                        binding.statusText.text = "Немає даних"
+                        toolbarUpdateTime.text = "Немає даних"
                     }
                 } else {
-                    binding.statusText.text = "Помилка завантаження"
+                    toolbarUpdateTime.text = "Помилка завантаження"
                     Toast.makeText(this@MainActivity, "Помилка завантаження даних", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                binding.statusText.text = "Помилка підключення"
+                toolbarUpdateTime.text = "Помилка підключення"
                 Toast.makeText(this@MainActivity, "Помилка: ${e.message}", Toast.LENGTH_SHORT).show()
                 e.printStackTrace()
             }
@@ -158,6 +201,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateCharts(data: List<DataRecord>) {
         if (data.isEmpty()) return
         
+        currentData = data
         val labels = data.map { DateFormatter.formatTime(it.timestamp) }
         val batteryEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.batterySoc.toFloat()) }
         val gridEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.gridLoad.toFloat()) }
@@ -183,6 +227,15 @@ class MainActivity : AppCompatActivity() {
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
         }
+        // Додаємо marker для відображення значення та часу
+        batteryMarker = CustomMarker(this, R.layout.marker_view, labels, "%")
+        binding.batteryChart.marker = batteryMarker
+        binding.batteryChart.setDrawMarkers(true)
+        binding.batteryChart.post {
+            val viewPortHandler = binding.batteryChart.viewPortHandler
+            batteryMarker?.setChartWidth(viewPortHandler.contentWidth())
+            batteryMarker?.setViewPortLeft(viewPortHandler.contentLeft())
+        }
         binding.batteryChart.notifyDataSetChanged()
         binding.batteryChart.invalidate()
         
@@ -206,6 +259,15 @@ class MainActivity : AppCompatActivity() {
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
         }
+        // Додаємо marker для відображення значення та часу
+        gridMarker = CustomMarker(this, R.layout.marker_view, labels, "Вт")
+        binding.gridChart.marker = gridMarker
+        binding.gridChart.setDrawMarkers(true)
+        binding.gridChart.post {
+            val viewPortHandler = binding.gridChart.viewPortHandler
+            gridMarker?.setChartWidth(viewPortHandler.contentWidth())
+            gridMarker?.setViewPortLeft(viewPortHandler.contentLeft())
+        }
         binding.gridChart.notifyDataSetChanged()
         binding.gridChart.invalidate()
         
@@ -228,6 +290,15 @@ class MainActivity : AppCompatActivity() {
                 val index = value.toInt()
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
+        }
+        // Додаємо marker для відображення значення та часу
+        homeMarker = CustomMarker(this, R.layout.marker_view, labels, "Вт")
+        binding.homeChart.marker = homeMarker
+        binding.homeChart.setDrawMarkers(true)
+        binding.homeChart.post {
+            val viewPortHandler = binding.homeChart.viewPortHandler
+            homeMarker?.setChartWidth(viewPortHandler.contentWidth())
+            homeMarker?.setViewPortLeft(viewPortHandler.contentLeft())
         }
         binding.homeChart.notifyDataSetChanged()
         binding.homeChart.invalidate()

@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/card_background"
-            app:title="Інвертор - Моніторинг"
+            app:title="Інвертор-Моніторинг"
             app:titleTextColor="@color/primary_blue" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -172,19 +172,6 @@
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>
-
-            <!-- Status -->
-            <TextView
-                android:id="@+id/statusText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/last_update"
-                android:textColor="@color/text_secondary"
-                android:textSize="14sp"
-                android:gravity="center"
-                android:padding="12dp"
-                android:background="@drawable/bg_status"
-                android:layout_marginBottom="16dp" />
 
         </LinearLayout>
 
