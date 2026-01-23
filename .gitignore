@@ -90,6 +90,7 @@ lint/tmp/
 .LSOverride
 Icon
 ._*
+.history/
 
 # Windows
 Thumbs.db

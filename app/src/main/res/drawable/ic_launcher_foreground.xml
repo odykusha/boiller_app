@@ -4,16 +4,51 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    
+    <!-- Battery icon (left side) -->
     <group
-        android:scaleX="0.5"
-        android:scaleY="0.5"
-        android:translateX="27"
-        android:translateY="27">
+        android:translateX="30"
+        android:translateY="40">
+        <!-- Battery body -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,27C41.85,27 32,36.85 32,49C32,61.15 41.85,71 54,71C66.15,71 76,61.15 76,49C76,36.85 66.15,27 54,27ZM54,65C45.72,65 39,58.28 39,50C39,41.72 45.72,35 54,35C62.28,35 69,41.72 69,50C69,58.28 62.28,65 54,65Z"/>
+            android:fillColor="#00D4FF"
+            android:pathData="M-12,-10 L-12,10 L12,10 L12,-10 Z"/>
+        <!-- Battery fill (green, 95%) -->
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,20L54,20C50.69,20 48,22.69 48,26L48,26L48,72L48,72C48,75.31 50.69,78 54,78L54,78C57.31,78 60,75.31 60,72L60,72L60,26L60,26C60,22.69 57.31,20 54,20Z"/>
+            android:fillColor="#00FF96"
+            android:pathData="M-10,-8 L-10,8 L10,8 L10,-8 Z"/>
+        <!-- Battery terminal -->
+        <path
+            android:fillColor="#00D4FF"
+            android:pathData="M12,-3 L16,-3 L16,3 L12,3 Z"/>
     </group>
+    
+    <!-- Lightning bolt (center) -->
+    <group
+        android:translateX="54"
+        android:translateY="40">
+        <path
+            android:fillColor="#00D4FF"
+            android:pathData="M-6,8 L-2,8 L0,0 L-4,0 L-6,-8 L6,-8 L4,0 L8,0 L6,8 L-2,8 Z"/>
+    </group>
+    
+    <!-- Light bulb (right side) -->
+    <group
+        android:translateX="78"
+        android:translateY="40">
+        <!-- Bulb shape -->
+        <path
+            android:fillColor="#00D4FF"
+            android:pathData="M-8,-10 Q-8,-14 -4,-14 Q0,-14 0,-10 Q0,-6 4,-6 Q8,-6 8,-10 Q8,-14 4,-14 Q0,-14 0,-10 Q0,-6 -4,-6 Q-8,-6 -8,-10 Z"/>
+        <!-- Bulb base -->
+        <path
+            android:fillColor="#00D4FF"
+            android:pathData="M-4,-10 L-4,-6 L4,-6 L4,-10 L2,-10 L2,-8 L-2,-8 L-2,-10 Z"/>
+        <!-- Light rays -->
+        <path
+            android:strokeColor="#00D4FF"
+            android:strokeWidth="1.5"
+            android:pathData="M-12,-6 L-8,-6 M12,-6 L8,-6 M0,-18 L0,-14"/>
+    </group>
+    
 </vector>
