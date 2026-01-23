@@ -18,14 +18,15 @@ import java.util.*
 
 class NotificationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var lastGridLoad: Int? = null // Зберігаємо останнє значення grid_load для визначення зміни
+    private var lastGridLoad: Int? = null
     private var updateJob: Job? = null
     private var consecutiveErrors = 0
-    private val TAG = "NotificationService"
+    private var changeNotificationCounter = NOTIFICATION_ID_CHANGE
     
     companion object {
-        private const val NOTIFICATION_ID_STATUS = 1  // ID для поточного стану (без звуку)
-        private const val NOTIFICATION_ID_CHANGE = 2   // ID для зміни статусу (зі звуком)
+        private const val TAG = "NotificationService"
+        private const val NOTIFICATION_ID_STATUS = 1
+        private const val NOTIFICATION_ID_CHANGE = 2
         private const val CHANNEL_ID_STATUS = "boiller_monitor_status_channel"
         private const val CHANNEL_ID_CHANGE = "boiller_monitor_change_channel"
         private const val CHANNEL_NAME_STATUS = "Теперішній статус"
@@ -55,24 +56,18 @@ class NotificationService : Service() {
         val notification = createStatusNotification(null)
         try {
             if (Build.VERSION.SDK_INT >= 34) {
-                // Android 14+ (API 34+) - потрібно вказати тип для specialUse
                 val serviceType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 startForeground(NOTIFICATION_ID_STATUS, notification, serviceType)
             } else {
-                // Android 13 та нижче
                 startForeground(NOTIFICATION_ID_STATUS, notification)
             }
         } catch (e: Exception) {
-            // Fallback для випадків, коли щось пішло не так
             startForeground(NOTIFICATION_ID_STATUS, notification)
-            e.printStackTrace()
         }
         startMonitoring()
     }
     
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
-    }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
     
     override fun onBind(intent: Intent?): IBinder? = null
     
@@ -80,7 +75,6 @@ class NotificationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NotificationManager::class.java)
             
-            // Канал для поточного стану (без звуку)
             val statusChannel = NotificationChannel(
                 CHANNEL_ID_STATUS,
                 CHANNEL_NAME_STATUS,
@@ -92,7 +86,6 @@ class NotificationService : Service() {
                 setSound(null, null)
             }
             
-            // Канал для зміни статусу (зі звуком)
             val changeChannel = NotificationChannel(
                 CHANNEL_ID_CHANGE,
                 CHANNEL_NAME_CHANGE,
@@ -121,25 +114,19 @@ class NotificationService : Service() {
         updateJob = serviceScope.launch {
             while (isActive) {
                 try {
-                    Log.d(TAG, "Оновлення даних...")
                     val data = fetchLatestData()
                     if (data != null) {
                         consecutiveErrors = 0
-                        Log.d(TAG, "Дані отримано: ${data}")
                         
-                        // Ініціалізуємо час зміни статусу при першому запуску
                         if (lastGridLoad == null) {
-                            Log.d(TAG, "Ініціалізація часу зміни статусу при першому запуску")
                             initializeStatusChangeTime(data)
                         }
                         
-                        updateNotification(data)
                         checkGridLoadChange(data)
+                        updateNotification(data)
                     } else {
                         consecutiveErrors++
-                        Log.w(TAG, "Не вдалося отримати дані (помилка #$consecutiveErrors)")
                         if (consecutiveErrors >= 3) {
-                            // Після 3 помилок підряд показуємо помилку в нотифікації
                             showErrorNotification("Помилка підключення до сервера")
                         }
                     }
@@ -150,7 +137,7 @@ class NotificationService : Service() {
                         showErrorNotification("Помилка: ${e.message}")
                     }
                 }
-                delay(60000) // Оновлення кожні 60 секунд
+                delay(60000)
             }
         }
     }
@@ -159,12 +146,7 @@ class NotificationService : Service() {
         try {
             val apiService = ApiClient.getApiService(this@NotificationService)
             val response = apiService.getLatest()
-            if (response.isSuccessful && response.body() != null) {
-                response.body()
-            } else {
-                Log.w(TAG, "Неуспішна відповідь API: ${response.code()}, ${response.message()}")
-                null
-            }
+            if (response.isSuccessful) response.body() else null
         } catch (e: Exception) {
             Log.e(TAG, "Помилка при запиті до API", e)
             null
@@ -175,83 +157,67 @@ class NotificationService : Service() {
         try {
             val apiService = ApiClient.getApiService(this@NotificationService)
             val response = apiService.getData()
-            if (response.isSuccessful && response.body() != null) {
-                response.body()?.data
-            } else {
-                Log.w(TAG, "Неуспішна відповідь API для історії: ${response.code()}, ${response.message()}")
-                null
-            }
+            if (response.isSuccessful) response.body()?.data else null
         } catch (e: Exception) {
-            Log.e(TAG, "Помилка при запиті історії до API", e)
+            Log.e(TAG, "Помилка при запиті історії", e)
             null
         }
     }
     
-    /**
-     * Знаходить останню зміну grid_load в історії даних
-     * Повертає timestamp останньої зміни (коли grid_load змінився з 0 на >0 або навпаки)
-     */
-    private suspend fun findLastGridLoadChange(currentGridLoad: Int): String? = withContext(Dispatchers.IO) {
+    private suspend fun findGridLoadChangeTime(fromGridLoad: Int, toGridLoad: Int): String? = withContext(Dispatchers.IO) {
         try {
-            val history = fetchDataHistory()
-            if (history == null || history.isEmpty()) {
-                Log.w(TAG, "Історія даних порожня або не отримана")
-                return@withContext null
-            }
+            val history = fetchDataHistory() ?: return@withContext null
+            if (history.isEmpty()) return@withContext null
             
-            // Сортуємо за timestamp (від старого до нового)
             val sortedHistory = history.sortedBy { it.timestamp }
-            
-            // Шукаємо останню зміну grid_load
-            // Проходимо з кінця (найновіші дані) до початку
-            var lastChangeTimestamp: String? = null
+            val fromHasLight = hasLight(fromGridLoad)
+            val toHasLight = hasLight(toGridLoad)
             
             for (i in sortedHistory.size - 1 downTo 1) {
                 val current = sortedHistory[i]
                 val previous = sortedHistory[i - 1]
                 
-                val currentHasLight = current.gridLoad > 0
-                val previousHasLight = previous.gridLoad > 0
-                
-                // Якщо статус змінився (з 0 на >0 або з >0 на 0)
-                if (currentHasLight != previousHasLight) {
-                    lastChangeTimestamp = current.timestamp
-                    Log.d(TAG, "Знайдено останню зміну grid_load: ${current.timestamp}, grid_load змінився з ${previous.gridLoad} на ${current.gridLoad}")
-                    break
+                if (hasLight(previous.gridLoad) == fromHasLight && hasLight(current.gridLoad) == toHasLight) {
+                    return@withContext current.timestamp
                 }
             }
-            
-            // Якщо зміни не знайдено, використовуємо найстаріший запис з поточним статусом
-            if (lastChangeTimestamp == null) {
-                val currentHasLight = currentGridLoad > 0
-                val matchingRecord = sortedHistory.findLast { (it.gridLoad > 0) == currentHasLight }
-                if (matchingRecord != null) {
-                    lastChangeTimestamp = matchingRecord.timestamp
-                    Log.d(TAG, "Зміни не знайдено, використовуємо найстаріший запис з поточним статусом: ${matchingRecord.timestamp}")
-                }
-            }
-            
-            lastChangeTimestamp
+            null
         } catch (e: Exception) {
-            Log.e(TAG, "Помилка при пошуку останньої зміни grid_load", e)
+            Log.e(TAG, "Помилка при пошуку часу зміни", e)
             null
         }
     }
     
-    /**
-     * Визначає чи є світло на основі grid_load
-     */
-    private fun hasLight(gridLoad: Int): Boolean {
-        return gridLoad > 0
+    private suspend fun findLastGridLoadChange(currentGridLoad: Int): String? = withContext(Dispatchers.IO) {
+        try {
+            val history = fetchDataHistory() ?: return@withContext null
+            if (history.isEmpty()) return@withContext null
+            
+            val sortedHistory = history.sortedBy { it.timestamp }
+            
+            for (i in sortedHistory.size - 1 downTo 1) {
+                val current = sortedHistory[i]
+                val previous = sortedHistory[i - 1]
+                
+                if ((current.gridLoad > 0) != (previous.gridLoad > 0)) {
+                    return@withContext current.timestamp
+                }
+            }
+            
+            val currentHasLight = currentGridLoad > 0
+            sortedHistory.findLast { (it.gridLoad > 0) == currentHasLight }?.timestamp
+        } catch (e: Exception) {
+            Log.e(TAG, "Помилка при пошуку останньої зміни", e)
+            null
+        }
     }
+    
+    private fun hasLight(gridLoad: Int): Boolean = gridLoad > 0
     
     private fun updateNotification(data: DataRecord) {
         try {
             val notification = createStatusNotification(data)
-            val notificationManager = NotificationManagerCompat.from(this)
-            // Примусово оновлюємо нотифікацію навіть якщо текст не змінився
-            notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
-            Log.d(TAG, "Нотифікація оновлена успішно, статус: ${data.gridStatus}, timestamp: ${data.timestamp}")
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID_STATUS, notification)
         } catch (e: Exception) {
             Log.e(TAG, "Помилка при оновленні нотифікації", e)
         }
@@ -259,14 +225,7 @@ class NotificationService : Service() {
     
     private fun showErrorNotification(errorMessage: String) {
         try {
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                this, 0, intent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            
+            val pendingIntent = createPendingIntent(0)
             val notification = NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
                 .setContentTitle("⚠️ Помилка підключення")
                 .setContentText(errorMessage)
@@ -277,22 +236,24 @@ class NotificationService : Service() {
                 .setSilent(true)
                 .build()
             
-            val notificationManager = NotificationManagerCompat.from(this)
-            notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID_STATUS, notification)
         } catch (e: Exception) {
-            Log.e(TAG, "Помилка при показі помилки в нотифікації", e)
+            Log.e(TAG, "Помилка при показі помилки", e)
         }
     }
     
-    // Нотифікація поточного стану (без звуку)
-    private fun createStatusNotification(data: DataRecord?): Notification {
+    private fun createPendingIntent(requestCode: Int): PendingIntent {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+        return PendingIntent.getActivity(
+            this, requestCode, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+    }
+    
+    private fun createStatusNotification(data: DataRecord?): Notification {
+        val pendingIntent = createPendingIntent(0)
         
         if (data == null) {
             return NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
@@ -302,34 +263,29 @@ class NotificationService : Service() {
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setSilent(true) // Без звуку
+                .setSilent(true)
                 .build()
         }
         
         val hasLightNow = hasLight(data.gridLoad)
         val gridStatusEmoji = if (hasLightNow) "💡" else "🕯️"
         val infoText = "🔋 ${data.batterySoc}% | ⚡ ${data.gridLoad} Вт | 🏠 ${data.homeLoad} Вт"
-        
-        // Отримуємо час зникнення/повернення світла для title
         val statusChangeText = getStatusChangeText(hasLightNow)
         
-        val title = "$gridStatusEmoji $statusChangeText"
-        Log.d(TAG, "Створюємо нотифікацію: title='$title', text='$infoText'")
-        
         return NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
-            .setContentTitle(title)
+            .setContentTitle("$gridStatusEmoji $statusChangeText")
             .setContentText(infoText)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSilent(true) // Без звуку
-            .setWhen(System.currentTimeMillis()) // Додаємо поточний час для примусового оновлення
-            .setShowWhen(false) // Не показуємо час в UI
+            .setSilent(true)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(false)
             .build()
     }
     
-    private fun checkGridLoadChange(data: DataRecord) {
+    private suspend fun checkGridLoadChange(data: DataRecord) {
         val currentGridLoad = data.gridLoad
         val previousGridLoad = lastGridLoad
         
@@ -337,110 +293,77 @@ class NotificationService : Service() {
         val previousHasLight = previousGridLoad?.let { hasLight(it) }
         
         if (previousGridLoad != null && previousHasLight != currentHasLight) {
-            // Статус світла змінився - зберігаємо час зміни
-            Log.d(TAG, "Статус світла змінився: grid_load змінився з $previousGridLoad на $currentGridLoad")
-            saveStatusChangeTime(currentHasLight, data.timestamp)
+            val exactChangeTimestamp = findGridLoadChangeTime(previousGridLoad, currentGridLoad)
             
-            if (isNotificationTimeAllowed()) {
-                showStatusChangeNotification(data, currentHasLight)
+            val changeTimestamp = if (exactChangeTimestamp != null && exactChangeTimestamp >= data.timestamp) {
+                exactChangeTimestamp
+            } else {
+                data.timestamp
             }
+            
+            saveStatusChangeTime(currentHasLight, changeTimestamp)
+            
+            val isTimeAllowed = isNotificationTimeAllowed()
+            showStatusChangeNotification(currentHasLight, changeTimestamp, isTimeAllowed)
         }
         
         lastGridLoad = currentGridLoad
     }
     
     private fun saveStatusChangeTime(hasLight: Boolean, timestamp: String) {
-        val prefs: SharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        if (hasLight) {
-            // Світло з'явилося
-            prefs.edit().putString(KEY_LIGHT_APPEARED_TIME, timestamp).apply()
-            Log.d(TAG, "Збережено час появи світла: $timestamp")
-        } else {
-            // Світло зникло
-            prefs.edit().putString(KEY_LIGHT_DISAPPEARED_TIME, timestamp).apply()
-            Log.d(TAG, "Збережено час зникнення світла: $timestamp")
-        }
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val key = if (hasLight) KEY_LIGHT_APPEARED_TIME else KEY_LIGHT_DISAPPEARED_TIME
+        prefs.edit().putString(key, timestamp).apply()
     }
     
     private suspend fun initializeStatusChangeTime(data: DataRecord) {
-        // При першому запуску шукаємо останню зміну grid_load в історії
         val hasLightNow = hasLight(data.gridLoad)
-        val lastChangeTimestamp = findLastGridLoadChange(data.gridLoad)
-        
-        if (lastChangeTimestamp != null) {
-            // Знайшли останню зміну в історії - зберігаємо її
-            Log.d(TAG, "Ініціалізація: знайдено останню зміну grid_load в історії: $lastChangeTimestamp")
-            saveStatusChangeTime(hasLightNow, lastChangeTimestamp)
-        } else {
-            // Якщо не знайшли в історії, використовуємо поточний час
-            Log.d(TAG, "Ініціалізація: зміни в історії не знайдено, використовуємо поточний час: ${data.timestamp}")
-            saveStatusChangeTime(hasLightNow, data.timestamp)
-        }
-        
-        // Встановлюємо поточне значення grid_load
+        val lastChangeTimestamp = findLastGridLoadChange(data.gridLoad) ?: data.timestamp
+        saveStatusChangeTime(hasLightNow, lastChangeTimestamp)
         lastGridLoad = data.gridLoad
     }
     
     private fun getStatusChangeText(hasLight: Boolean): String {
-        val prefs: SharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val result = if (hasLight) {
-            // Світло є - показуємо коли з'явилося
-            val appearedTime = prefs.getString(KEY_LIGHT_APPEARED_TIME, null)
-            if (appearedTime != null) {
-                val formattedTime = DateFormatter.formatTime(appearedTime)
-                "Світло з'явилося о $formattedTime"
-            } else {
-                "Є світло"
-            }
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val key = if (hasLight) KEY_LIGHT_APPEARED_TIME else KEY_LIGHT_DISAPPEARED_TIME
+        val time = prefs.getString(key, null)
+        
+        return if (time != null) {
+            val formattedTime = DateFormatter.formatTime(time)
+            if (hasLight) "Світло з'явилося о $formattedTime" else "Світло зникло о $formattedTime"
         } else {
-            // Світла немає - показуємо коли зникло
-            val disappearedTime = prefs.getString(KEY_LIGHT_DISAPPEARED_TIME, null)
-            if (disappearedTime != null) {
-                val formattedTime = DateFormatter.formatTime(disappearedTime)
-                "Світло зникло о $formattedTime"
-            } else {
-                "Немає світла"
-            }
+            if (hasLight) "Є світло" else "Немає світла"
         }
-        Log.d(TAG, "getStatusChangeText: hasLight=$hasLight, result='$result'")
-        return result
     }
     
     private fun isNotificationTimeAllowed(): Boolean {
-        val calendar = Calendar.getInstance()
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
+        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val startHour = ApiClient.getNotificationStartHour(this)
         val endHour = ApiClient.getNotificationEndHour(this)
         return currentHour >= startHour && currentHour < endHour
     }
     
-    // Нотифікація про зміну статусу (зі звуком)
-    private fun showStatusChangeNotification(data: DataRecord, hasLight: Boolean) {
-        val title = if (hasLight) 
-            "💡 Світло з'явилося!" 
-        else 
-            "🕯️ Світло зникло!"
-        val text = "🔋 ${data.batterySoc}% | ⚡ ${data.gridLoad} Вт | 🏠 ${data.homeLoad} Вт"
+    private fun showStatusChangeNotification(hasLight: Boolean, changeTimestamp: String, withSound: Boolean) {
+        val formattedTime = DateFormatter.formatTime(changeTimestamp)
+        val title = if (hasLight) "💡 Світло з'явилося о $formattedTime" else "🕯️ Світло зникло о $formattedTime"
         
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 1, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID_CHANGE)
+        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID_CHANGE)
             .setContentTitle(title)
-            .setContentText(text)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(createPendingIntent(1))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-            .build()
         
-        val notificationManager = NotificationManagerCompat.from(this)
-        notificationManager.notify(NOTIFICATION_ID_CHANGE, notification)
+        if (!withSound) {
+            notificationBuilder.setSilent(true)
+        }
+        
+        val uniqueNotificationId = changeNotificationCounter++
+        if (changeNotificationCounter > Int.MAX_VALUE - 1000) {
+            changeNotificationCounter = NOTIFICATION_ID_CHANGE
+        }
+        
+        NotificationManagerCompat.from(this).notify(uniqueNotificationId, notificationBuilder.build())
     }
     
     override fun onDestroy() {
