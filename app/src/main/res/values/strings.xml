@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Бойлер Монітор</string>
+    <string name="app_name">Світлячок</string>
     <string name="battery">Батарея</string>
     <string name="grid">Мережа</string>
     <string name="home">Дім</string>

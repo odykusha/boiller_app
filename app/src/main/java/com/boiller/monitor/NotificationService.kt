@@ -210,7 +210,7 @@ class NotificationService : Service() {
         
         if (data == null) {
             return NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
-                .setContentTitle("Бойлер Монітор")
+                .setContentTitle("Світлячок")
                 .setContentText("Завантаження даних...")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(pendingIntent)

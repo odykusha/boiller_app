@@ -22,7 +22,7 @@ object ApiClient {
     fun getApiService(context: Context): ApiService {
         val serverUrl = getServerUrl(context)
         
-        if (retrofit == null || getBaseUrl(context) != serverUrl) {
+        if (retrofit == null || (retrofit?.baseUrl()?.toString() != serverUrl)) {
             val loggingInterceptor = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             }
@@ -54,10 +54,6 @@ object ApiClient {
         prefs.edit().putString(KEY_SERVER_URL, url).apply()
         // Скидаємо retrofit для пересоздання з новим URL
         retrofit = null
-    }
-    
-    private fun getBaseUrl(context: Context): String {
-        return getServerUrl(context)
     }
     
     fun getNotificationStartHour(context: Context): Int {

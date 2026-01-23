@@ -9,7 +9,6 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -18,13 +17,11 @@ import com.boiller.monitor.api.ApiClient
 import com.boiller.monitor.api.DataRecord
 import com.boiller.monitor.databinding.ActivityMainBinding
 import com.boiller.monitor.databinding.CardStatBinding
-import com.boiller.monitor.databinding.DialogSettingsBinding
 import com.boiller.monitor.utils.DateFormatter
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Timer
 import java.util.TimerTask
@@ -32,11 +29,10 @@ import java.util.TimerTask
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var refreshTimer: Timer? = null
-    private var currentData: List<DataRecord> = emptyList()
     private var batteryMarker: CustomMarker? = null
     private var gridMarker: CustomMarker? = null
     private var homeMarker: CustomMarker? = null
-    private lateinit var toolbarUpdateTime: android.widget.TextView
+    private lateinit var toolbarUpdateTime: TextView
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -201,7 +197,6 @@ class MainActivity : AppCompatActivity() {
     private fun updateCharts(data: List<DataRecord>) {
         if (data.isEmpty()) return
         
-        currentData = data
         val labels = data.map { DateFormatter.formatTime(it.timestamp) }
         val batteryEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.batterySoc.toFloat()) }
         val gridEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.gridLoad.toFloat()) }
@@ -325,29 +320,6 @@ class MainActivity : AppCompatActivity() {
         homeCardBinding.statLabel.text = "🏠 Дім"
         homeCardBinding.statValue.text = latest.homeLoad.toString()
         homeCardBinding.statUnit.text = "Вт"
-    }
-    
-    private fun showSettingsDialog() {
-        val dialogBinding = DialogSettingsBinding.inflate(layoutInflater)
-        val currentUrl = ApiClient.getServerUrl(this)
-        dialogBinding.serverUrlInput.setText(currentUrl)
-        
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Налаштування")
-            .setView(dialogBinding.root)
-            .setPositiveButton("Зберегти") { _, _ ->
-                val newUrl = dialogBinding.serverUrlInput.text.toString().trim()
-                if (newUrl.isNotEmpty()) {
-                    val url = if (newUrl.endsWith("/")) newUrl else "$newUrl/"
-                    ApiClient.setServerUrl(this, url)
-                    Toast.makeText(this, "URL оновлено", Toast.LENGTH_SHORT).show()
-                    loadData()
-                }
-            }
-            .setNegativeButton("Скасувати", null)
-            .create()
-        
-        dialog.show()
     }
     
     private fun startAutoRefresh() {
