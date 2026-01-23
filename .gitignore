@@ -83,3 +83,70 @@ lint/generated/
 lint/outputs/
 lint/tmp/
 # lint/reports/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Kotlin
+*.kt.swp
+*.kt~
+*.kt.class
+
+# Android Studio
+*.iml
+.gradle/
+local.properties
+*.ipr
+*.iws
+.idea_modules/
+atlassian-ide-plugin.xml
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# Build
+build/
+*/build/
+*.ap_
+*.apk
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+proguard/
+
+# Signing files
+*.jks
+*.keystore
+*.properties
+!gradle.properties
+
+# Misc
+*.log
+*.swp
+*~
+.navigation/
+captures/
+.externalNativeBuild
+.cxx/
+*.orig
+
+# Backup files
+*.bak
+*.backup
+*~

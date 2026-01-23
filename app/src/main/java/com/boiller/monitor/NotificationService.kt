@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.boiller.monitor.api.ApiClient
@@ -18,6 +19,8 @@ class NotificationService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var lastGridStatus: Boolean? = null
     private var updateJob: Job? = null
+    private var consecutiveErrors = 0
+    private val TAG = "NotificationService"
     
     companion object {
         private const val NOTIFICATION_ID_STATUS = 1  // ID для поточного стану (без звуку)
@@ -114,13 +117,27 @@ class NotificationService : Service() {
         updateJob = serviceScope.launch {
             while (isActive) {
                 try {
+                    Log.d(TAG, "Оновлення даних...")
                     val data = fetchLatestData()
                     if (data != null) {
+                        consecutiveErrors = 0
+                        Log.d(TAG, "Дані отримано: ${data.timestamp}, статус: ${data.gridStatus}")
                         updateNotification(data)
                         checkGridStatusChange(data)
+                    } else {
+                        consecutiveErrors++
+                        Log.w(TAG, "Не вдалося отримати дані (помилка #$consecutiveErrors)")
+                        if (consecutiveErrors >= 3) {
+                            // Після 3 помилок підряд показуємо помилку в нотифікації
+                            showErrorNotification("Помилка підключення до сервера")
+                        }
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    consecutiveErrors++
+                    Log.e(TAG, "Помилка при оновленні даних", e)
+                    if (consecutiveErrors >= 3) {
+                        showErrorNotification("Помилка: ${e.message}")
+                    }
                 }
                 delay(60000) // Оновлення кожні 60 секунд
             }
@@ -131,20 +148,54 @@ class NotificationService : Service() {
         try {
             val apiService = ApiClient.getApiService(this@NotificationService)
             val response = apiService.getLatest()
-            if (response.isSuccessful) {
+            if (response.isSuccessful && response.body() != null) {
                 response.body()
             } else {
+                Log.w(TAG, "Неуспішна відповідь API: ${response.code()}, ${response.message()}")
                 null
             }
         } catch (e: Exception) {
+            Log.e(TAG, "Помилка при запиті до API", e)
             null
         }
     }
     
     private fun updateNotification(data: DataRecord) {
-        val notification = createStatusNotification(data)
-        val notificationManager = NotificationManagerCompat.from(this)
-        notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
+        try {
+            val notification = createStatusNotification(data)
+            val notificationManager = NotificationManagerCompat.from(this)
+            notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
+            Log.d(TAG, "Нотифікація оновлена успішно")
+        } catch (e: Exception) {
+            Log.e(TAG, "Помилка при оновленні нотифікації", e)
+        }
+    }
+    
+    private fun showErrorNotification(errorMessage: String) {
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
+                .setContentTitle("⚠️ Помилка підключення")
+                .setContentText(errorMessage)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true)
+                .build()
+            
+            val notificationManager = NotificationManagerCompat.from(this)
+            notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Помилка при показі помилки в нотифікації", e)
+        }
     }
     
     // Нотифікація поточного стану (без звуку)
