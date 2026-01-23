@@ -1,10 +1,14 @@
 package com.boiller.monitor
 
 import android.os.Bundle
+import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.boiller.monitor.api.ApiClient
 import com.boiller.monitor.databinding.ActivitySettingsBinding
+import com.boiller.monitor.utils.DateFormatter
+import com.boiller.monitor.utils.LightChangeHistory
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
@@ -19,6 +23,7 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.title = "Налаштування"
         
         loadSettings()
+        renderLightChanges()
         
         // Оновлення тексту при зміні slider
         binding.notificationStartHourPicker.addOnChangeListener { _, value, _ ->
@@ -32,6 +37,11 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnSave.setOnClickListener {
             saveSettings()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderLightChanges()
     }
     
     private fun loadSettings() {
@@ -71,6 +81,41 @@ class SettingsActivity : AppCompatActivity() {
         NotificationService.startService(this)
         
         finish()
+    }
+
+    private fun renderLightChanges() {
+        val container = binding.lightChangesContainer
+        container.removeAllViews()
+
+        val events = LightChangeHistory.getLast(this, 10)
+        if (events.isEmpty()) {
+            val tv = TextView(this).apply {
+                text = "Немає даних"
+                setTextColor(getColor(R.color.text_secondary))
+                textSize = 14f
+            }
+            container.addView(tv)
+            return
+        }
+
+        events.forEach { ev ->
+            val emoji = if (ev.hasLight) "💡" else "🕯️"
+            val time = DateFormatter.formatTime(ev.timestamp)
+            val text = if (ev.hasLight) "$emoji Світло з'явилось о $time" else "$emoji Світло зникло о $time"
+
+            val tv = TextView(this).apply {
+                this.text = text
+                setTextColor(getColor(R.color.white))
+                textSize = 14f
+                layoutParams = ViewGroup.MarginLayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = resources.displayMetrics.density.toInt() * 8
+                }
+            }
+            container.addView(tv)
+        }
     }
     
     override fun onSupportNavigateUp(): Boolean {

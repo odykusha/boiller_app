@@ -13,6 +13,8 @@ import androidx.core.app.NotificationManagerCompat
 import com.boiller.monitor.api.ApiClient
 import com.boiller.monitor.api.DataRecord
 import com.boiller.monitor.utils.DateFormatter
+import com.boiller.monitor.utils.LightChangeHistory
+import com.boiller.monitor.utils.LightChangeEvent
 import kotlinx.coroutines.*
 import java.util.*
 
@@ -302,6 +304,7 @@ class NotificationService : Service() {
             }
             
             saveStatusChangeTime(currentHasLight, changeTimestamp)
+            LightChangeHistory.add(this@NotificationService, currentHasLight, changeTimestamp)
             
             val isTimeAllowed = isNotificationTimeAllowed()
             showStatusChangeNotification(currentHasLight, changeTimestamp, isTimeAllowed)
@@ -317,10 +320,36 @@ class NotificationService : Service() {
     }
     
     private suspend fun initializeStatusChangeTime(data: DataRecord) {
+        seedLightHistoryIfNeeded()
         val hasLightNow = hasLight(data.gridLoad)
         val lastChangeTimestamp = findLastGridLoadChange(data.gridLoad) ?: data.timestamp
         saveStatusChangeTime(hasLightNow, lastChangeTimestamp)
         lastGridLoad = data.gridLoad
+    }
+
+    private suspend fun seedLightHistoryIfNeeded() {
+        if (LightChangeHistory.isSeeded(this@NotificationService)) return
+
+        val history = fetchDataHistory()?.sortedBy { it.timestamp }.orEmpty()
+        if (history.size < 2) {
+            LightChangeHistory.markSeeded(this@NotificationService)
+            return
+        }
+
+        val events = ArrayList<LightChangeEvent>()
+        for (i in 1 until history.size) {
+            val prev = history[i - 1]
+            val cur = history[i]
+            val prevHas = hasLight(prev.gridLoad)
+            val curHas = hasLight(cur.gridLoad)
+            if (prevHas != curHas) {
+                events.add(LightChangeEvent(timestamp = cur.timestamp, hasLight = curHas))
+            }
+        }
+
+        // зберігаємо максимум 10 останніх
+        LightChangeHistory.replaceAll(this@NotificationService, events)
+        LightChangeHistory.markSeeded(this@NotificationService)
     }
     
     private fun getStatusChangeText(hasLight: Boolean): String {

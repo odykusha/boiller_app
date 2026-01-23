@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.Gravity
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -29,9 +31,6 @@ import java.util.TimerTask
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var refreshTimer: Timer? = null
-    private var batteryMarker: CustomMarker? = null
-    private var gridMarker: CustomMarker? = null
-    private var homeMarker: CustomMarker? = null
     private lateinit var toolbarUpdateTime: TextView
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -122,26 +121,56 @@ class MainActivity : AppCompatActivity() {
         chart.setNoDataText("Немає даних")
         chart.setNoDataTextColor(getColor(R.color.text_secondary))
         
-        // Додаємо обробники для приховування маркерів на інших графіках
-        chart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
-            override fun onValueSelected(e: Entry?, h: com.github.mikephil.charting.highlight.Highlight?) {
-                // Ховаємо маркери на інших графіках
-                hideMarkersOnOtherCharts(chart)
-            }
-            
-            override fun onNothingSelected() {
-                // Можна залишити порожнім або ховати всі маркери
-            }
-        })
     }
     
     private fun hideMarkersOnOtherCharts(activeChart: com.github.mikephil.charting.charts.LineChart) {
-        val charts = listOf(binding.batteryChart, binding.gridChart, binding.homeChart)
-        charts.forEach { chart ->
+        val items = listOf(
+            Triple(binding.batteryChart, binding.batteryMarkerOverlay, "%"),
+            Triple(binding.gridChart, binding.gridMarkerOverlay, "Вт"),
+            Triple(binding.homeChart, binding.homeMarkerOverlay, "Вт"),
+        )
+        items.forEach { (chart, overlay, _) ->
             if (chart != activeChart) {
                 chart.highlightValue(null, false)
+                overlay.visibility = View.GONE
             }
         }
+    }
+
+    private fun showOverlayForSelection(
+        chart: com.github.mikephil.charting.charts.LineChart,
+        overlay: TextView,
+        labels: List<String>,
+        unit: String,
+        e: Entry?,
+        h: com.github.mikephil.charting.highlight.Highlight?
+    ) {
+        if (e == null || h == null) return
+
+        val index = e.x.toInt()
+        val value = e.y.toInt()
+        val time = if (index in labels.indices) labels[index] else ""
+        overlay.text = "$time\n$value $unit"
+
+        // Клік справа -> оверлей зліва, клік зліва -> оверлей справа (в межах viewport)
+        val vp = chart.viewPortHandler
+        val center = vp.contentLeft() + vp.contentWidth() / 2f
+        val isClickOnRight = h.xPx > center
+        val gravity = if (isClickOnRight) {
+            Gravity.BOTTOM or Gravity.START
+        } else {
+            Gravity.BOTTOM or Gravity.END
+        }
+
+        val lp = (overlay.layoutParams as? FrameLayout.LayoutParams)
+            ?: FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        lp.gravity = gravity
+        overlay.layoutParams = lp
+
+        overlay.visibility = View.VISIBLE
     }
     
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -222,15 +251,18 @@ class MainActivity : AppCompatActivity() {
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
         }
-        // Додаємо marker для відображення значення та часу
-        batteryMarker = CustomMarker(this, R.layout.marker_view, labels, "%")
-        binding.batteryChart.marker = batteryMarker
-        binding.batteryChart.setDrawMarkers(true)
-        binding.batteryChart.post {
-            val viewPortHandler = binding.batteryChart.viewPortHandler
-            batteryMarker?.setChartWidth(viewPortHandler.contentWidth())
-            batteryMarker?.setViewPortLeft(viewPortHandler.contentLeft())
-        }
+        binding.batteryChart.marker = null
+        binding.batteryChart.setDrawMarkers(false)
+        binding.batteryChart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: com.github.mikephil.charting.highlight.Highlight?) {
+                hideMarkersOnOtherCharts(binding.batteryChart)
+                showOverlayForSelection(binding.batteryChart, binding.batteryMarkerOverlay, labels, "%", e, h)
+            }
+
+            override fun onNothingSelected() {
+                binding.batteryMarkerOverlay.visibility = View.GONE
+            }
+        })
         binding.batteryChart.notifyDataSetChanged()
         binding.batteryChart.invalidate()
         
@@ -254,15 +286,18 @@ class MainActivity : AppCompatActivity() {
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
         }
-        // Додаємо marker для відображення значення та часу
-        gridMarker = CustomMarker(this, R.layout.marker_view, labels, "Вт")
-        binding.gridChart.marker = gridMarker
-        binding.gridChart.setDrawMarkers(true)
-        binding.gridChart.post {
-            val viewPortHandler = binding.gridChart.viewPortHandler
-            gridMarker?.setChartWidth(viewPortHandler.contentWidth())
-            gridMarker?.setViewPortLeft(viewPortHandler.contentLeft())
-        }
+        binding.gridChart.marker = null
+        binding.gridChart.setDrawMarkers(false)
+        binding.gridChart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: com.github.mikephil.charting.highlight.Highlight?) {
+                hideMarkersOnOtherCharts(binding.gridChart)
+                showOverlayForSelection(binding.gridChart, binding.gridMarkerOverlay, labels, "Вт", e, h)
+            }
+
+            override fun onNothingSelected() {
+                binding.gridMarkerOverlay.visibility = View.GONE
+            }
+        })
         binding.gridChart.notifyDataSetChanged()
         binding.gridChart.invalidate()
         
@@ -286,15 +321,18 @@ class MainActivity : AppCompatActivity() {
                 return if (index >= 0 && index < labels.size) labels[index] else ""
             }
         }
-        // Додаємо marker для відображення значення та часу
-        homeMarker = CustomMarker(this, R.layout.marker_view, labels, "Вт")
-        binding.homeChart.marker = homeMarker
-        binding.homeChart.setDrawMarkers(true)
-        binding.homeChart.post {
-            val viewPortHandler = binding.homeChart.viewPortHandler
-            homeMarker?.setChartWidth(viewPortHandler.contentWidth())
-            homeMarker?.setViewPortLeft(viewPortHandler.contentLeft())
-        }
+        binding.homeChart.marker = null
+        binding.homeChart.setDrawMarkers(false)
+        binding.homeChart.setOnChartValueSelectedListener(object : com.github.mikephil.charting.listener.OnChartValueSelectedListener {
+            override fun onValueSelected(e: Entry?, h: com.github.mikephil.charting.highlight.Highlight?) {
+                hideMarkersOnOtherCharts(binding.homeChart)
+                showOverlayForSelection(binding.homeChart, binding.homeMarkerOverlay, labels, "Вт", e, h)
+            }
+
+            override fun onNothingSelected() {
+                binding.homeMarkerOverlay.visibility = View.GONE
+            }
+        })
         binding.homeChart.notifyDataSetChanged()
         binding.homeChart.invalidate()
     }

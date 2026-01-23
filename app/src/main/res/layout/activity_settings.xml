@@ -171,6 +171,25 @@
                 android:backgroundTint="@color/primary_blue"
                 android:layout_marginTop="16dp" />
 
+            <!-- Light changes history -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Останні зміни по світлу"
+                android:textColor="@color/primary_blue"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:id="@+id/lightChangesContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:background="@color/card_background" />
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
