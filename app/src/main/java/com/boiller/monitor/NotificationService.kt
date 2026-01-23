@@ -20,9 +20,12 @@ class NotificationService : Service() {
     private var updateJob: Job? = null
     
     companion object {
-        private const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "boiller_monitor_channel"
-        private const val CHANNEL_NAME = "Бойлер Монітор"
+        private const val NOTIFICATION_ID_STATUS = 1  // ID для поточного стану (без звуку)
+        private const val NOTIFICATION_ID_CHANGE = 2   // ID для зміни статусу (зі звуком)
+        private const val CHANNEL_ID_STATUS = "boiller_monitor_status_channel"
+        private const val CHANNEL_ID_CHANGE = "boiller_monitor_change_channel"
+        private const val CHANNEL_NAME_STATUS = "Теперішній статус"
+        private const val CHANNEL_NAME_CHANGE = "Зміни по світлу"
         
         fun startService(context: Context) {
             val intent = Intent(context, NotificationService::class.java)
@@ -41,20 +44,20 @@ class NotificationService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        val notification = createNotification(null)
+        createNotificationChannels()
+        val notification = createStatusNotification(null)
         try {
             if (Build.VERSION.SDK_INT >= 34) {
                 // Android 14+ (API 34+) - потрібно вказати тип для specialUse
                 val serviceType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                startForeground(NOTIFICATION_ID, notification, serviceType)
+                startForeground(NOTIFICATION_ID_STATUS, notification, serviceType)
             } else {
                 // Android 13 та нижче
-                startForeground(NOTIFICATION_ID, notification)
+                startForeground(NOTIFICATION_ID_STATUS, notification)
             }
         } catch (e: Exception) {
             // Fallback для випадків, коли щось пішло не так
-            startForeground(NOTIFICATION_ID, notification)
+            startForeground(NOTIFICATION_ID_STATUS, notification)
             e.printStackTrace()
         }
         startMonitoring()
@@ -66,18 +69,43 @@ class NotificationService : Service() {
     
     override fun onBind(intent: Intent?): IBinder? = null
     
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            
+            // Канал для поточного стану (без звуку)
+            val statusChannel = NotificationChannel(
+                CHANNEL_ID_STATUS,
+                CHANNEL_NAME_STATUS,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Моніторинг інвертера"
+                description = "Поточний стан системи"
                 setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
             }
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            
+            // Канал для зміни статусу (зі звуком)
+            val changeChannel = NotificationChannel(
+                CHANNEL_ID_CHANGE,
+                CHANNEL_NAME_CHANGE,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Повідомлення про зміну статусу світла"
+                setShowBadge(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    android.media.AudioAttributes.Builder()
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                        .build()
+                )
+            }
+            
+            notificationManager.createNotificationChannel(statusChannel)
+            notificationManager.createNotificationChannel(changeChannel)
         }
     }
     
@@ -114,12 +142,13 @@ class NotificationService : Service() {
     }
     
     private fun updateNotification(data: DataRecord) {
-        val notification = createNotification(data)
+        val notification = createStatusNotification(data)
         val notificationManager = NotificationManagerCompat.from(this)
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        notificationManager.notify(NOTIFICATION_ID_STATUS, notification)
     }
     
-    private fun createNotification(data: DataRecord?): Notification {
+    // Нотифікація поточного стану (без звуку)
+    private fun createStatusNotification(data: DataRecord?): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -129,13 +158,14 @@ class NotificationService : Service() {
         )
         
         if (data == null) {
-            return NotificationCompat.Builder(this, CHANNEL_ID)
+            return NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
                 .setContentTitle("Бойлер Монітор")
                 .setContentText("Завантаження даних...")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setSilent(true) // Без звуку
                 .build()
         }
         
@@ -144,14 +174,15 @@ class NotificationService : Service() {
         val gridStatusText = if (data.gridStatus) "Є світло" else "Немає світла"
         val infoText = "🔋 ${data.batterySoc}% | ⚡ ${data.gridLoad} Вт | 🏠 ${data.homeLoad} Вт"
         
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("$gridStatusEmoji $gridStatusText | $updateTime\n$infoText")
-            .setContentText("")
+        return NotificationCompat.Builder(this, CHANNEL_ID_STATUS)
+            .setContentTitle("$gridStatusEmoji $gridStatusText | $updateTime")
+            .setContentText(infoText)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)
+            .setSilent(true) // Без звуку
             .build()
     }
     
@@ -163,7 +194,6 @@ class NotificationService : Service() {
             // Статус змінився
             if (isNotificationTimeAllowed()) {
                 showStatusChangeNotification(data, currentStatus)
-                playSound()
             }
         }
         
@@ -178,12 +208,13 @@ class NotificationService : Service() {
         return currentHour >= startHour && currentHour < endHour
     }
     
+    // Нотифікація про зміну статусу (зі звуком)
     private fun showStatusChangeNotification(data: DataRecord, hasLight: Boolean) {
-        val title = if (hasLight) "💡 Світло з'явилося! 🔋${data.batterySoc}%" else "🕯️ Світло зникло! 🔋${data.batterySoc}%"
-//        val text = if (hasLight)
-//            "Мережа: ${data.gridLoad} Вт | Батарея: ${data.batterySoc}%"
-//        else
-//            "Мережа: ${data.gridLoad} Вт | Батарея: ${data.batterySoc}%"
+        val title = if (hasLight) 
+            "💡 Світло з'явилося!" 
+        else 
+            "🕯️ Світло зникло!"
+        val text = "🔋 ${data.batterySoc}% | ⚡ ${data.gridLoad} Вт | 🏠 ${data.homeLoad} Вт"
         
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -193,29 +224,17 @@ class NotificationService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID_CHANGE)
             .setContentTitle(title)
-//            .setContentText(text)
+            .setContentText(text)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-            .setVibrate(longArrayOf(0, 500, 200, 500))
             .build()
         
         val notificationManager = NotificationManagerCompat.from(this)
-        notificationManager.notify(2, notification) // Інший ID для окремої нотифікації
-    }
-    
-    private fun playSound() {
-        try {
-            val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val r = RingtoneManager.getRingtone(applicationContext, notification)
-            r?.play()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        notificationManager.notify(NOTIFICATION_ID_CHANGE, notification)
     }
     
     override fun onDestroy() {
