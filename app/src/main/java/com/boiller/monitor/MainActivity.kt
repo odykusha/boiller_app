@@ -84,9 +84,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun setupCharts() {
-        setupChart(binding.batteryChart, "Батарея", android.graphics.Color.parseColor("#00FF96"))
-        setupChart(binding.gridChart, "Мережа", android.graphics.Color.parseColor("#FF6B6B"))
-        setupChart(binding.homeChart, "Дім", android.graphics.Color.parseColor("#00D4FF"))
+        setupChart(binding.batteryChart, "Батарея", getColor(R.color.battery_color))
+        setupChart(binding.gridChart, "Мережа", getColor(R.color.grid_color))
+        setupChart(binding.homeChart, "Дім", getColor(R.color.home_color))
     }
     
     private fun setupChart(chart: com.github.mikephil.charting.charts.LineChart, label: String, color: Int) {
@@ -232,13 +232,14 @@ class MainActivity : AppCompatActivity() {
         val homeEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.homeLoad.toFloat()) }
         
         // Battery Chart
+        val batteryColor = android.graphics.Color.parseColor("#4CAF50") // Зелений
         val batteryDataSet = LineDataSet(batteryEntries, "Батарея").apply {
-            color = getColor(R.color.battery_color)
-            setCircleColor(getColor(R.color.battery_color))
+            color = batteryColor
+            setCircleColor(batteryColor)
             lineWidth = 2f
             setDrawCircles(false)
             setDrawFilled(true)
-            fillColor = getColor(R.color.battery_color)
+            fillColor = batteryColor
             fillAlpha = 60
             mode = LineDataSet.Mode.CUBIC_BEZIER
             valueTextColor = getColor(R.color.text_secondary)
@@ -267,13 +268,14 @@ class MainActivity : AppCompatActivity() {
         binding.batteryChart.invalidate()
         
         // Grid Chart
+        val gridColor = android.graphics.Color.parseColor("#F44336") // Червоний
         val gridDataSet = LineDataSet(gridEntries, "Мережа").apply {
-            color = getColor(R.color.grid_color)
-            setCircleColor(getColor(R.color.grid_color))
+            color = gridColor
+            setCircleColor(gridColor)
             lineWidth = 2f
             setDrawCircles(false)
             setDrawFilled(true)
-            fillColor = getColor(R.color.grid_color)
+            fillColor = gridColor
             fillAlpha = 60
             mode = LineDataSet.Mode.CUBIC_BEZIER
             valueTextColor = getColor(R.color.text_secondary)
@@ -302,13 +304,14 @@ class MainActivity : AppCompatActivity() {
         binding.gridChart.invalidate()
         
         // Home Chart
+        val homeColor = android.graphics.Color.parseColor("#2196F3") // Синій
         val homeDataSet = LineDataSet(homeEntries, "Дім").apply {
-            color = getColor(R.color.home_color)
-            setCircleColor(getColor(R.color.home_color))
+            color = homeColor
+            setCircleColor(homeColor)
             lineWidth = 2f
             setDrawCircles(false)
             setDrawFilled(true)
-            fillColor = getColor(R.color.home_color)
+            fillColor = homeColor
             fillAlpha = 60
             mode = LineDataSet.Mode.CUBIC_BEZIER
             valueTextColor = getColor(R.color.text_secondary)

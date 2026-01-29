@@ -14,7 +14,7 @@
     <color name="primary_blue">#00D4FF</color>
     <color name="primary_green">#00FF96</color>
     <color name="text_secondary">#8892B0</color>
-    <color name="battery_color">#00FF96</color>
-    <color name="grid_color">#FF6B6B</color>
-    <color name="home_color">#00D4FF</color>
+    <color name="battery_color">#4CAF50</color>
+    <color name="grid_color">#F44336</color>
+    <color name="home_color">#2196F3</color>
 </resources>
