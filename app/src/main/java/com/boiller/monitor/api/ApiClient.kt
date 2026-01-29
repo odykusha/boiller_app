@@ -1,76 +1,45 @@
 package com.boiller.monitor.api
 
 import android.content.Context
-import android.content.SharedPreferences
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
+import com.boiller.monitor.shared.api.ApiService
+import com.boiller.monitor.shared.settings.Settings
 
 object ApiClient {
-    private const val PREFS_NAME = "boiller_prefs"
-    private const val KEY_SERVER_URL = "server_url"
-    private const val KEY_NOTIFICATION_START_HOUR = "notification_start_hour"
-    private const val KEY_NOTIFICATION_END_HOUR = "notification_end_hour"
-    private const val DEFAULT_SERVER_URL = "http://192.168.50.100:8080/"
-    private const val DEFAULT_NOTIFICATION_START_HOUR = 8
-    private const val DEFAULT_NOTIFICATION_END_HOUR = 22
-    
-    private var retrofit: Retrofit? = null
+    private var apiService: ApiService? = null
+    private var currentServerUrl: String? = null
     
     fun getApiService(context: Context): ApiService {
-        val serverUrl = getServerUrl(context)
+        val settings = Settings(context)
+        val serverUrl = settings.getServerUrl()
         
-        if (retrofit == null || (retrofit?.baseUrl()?.toString() != serverUrl)) {
-            val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-            
-            val client = OkHttpClient.Builder()
-                .addInterceptor(loggingInterceptor)
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build()
-            
-            retrofit = Retrofit.Builder()
-                .baseUrl(serverUrl)
-                .client(client)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
+        // Пересоздаємо сервіс, якщо URL змінився
+        if (apiService == null || currentServerUrl != serverUrl) {
+            apiService = ApiService(serverUrl)
+            currentServerUrl = serverUrl
         }
         
-        return retrofit!!.create(ApiService::class.java)
+        return apiService!!
     }
     
     fun getServerUrl(context: Context): String {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
+        return Settings(context).getServerUrl()
     }
     
     fun setServerUrl(context: Context, url: String) {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_SERVER_URL, url).apply()
-        // Скидаємо retrofit для пересоздання з новим URL
-        retrofit = null
+        Settings(context).setServerUrl(url)
+        // Скидаємо apiService для пересоздання з новим URL
+        apiService = null
     }
     
     fun getNotificationStartHour(context: Context): Int {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(KEY_NOTIFICATION_START_HOUR, DEFAULT_NOTIFICATION_START_HOUR)
+        return Settings(context).getNotificationStartHour()
     }
     
     fun getNotificationEndHour(context: Context): Int {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(KEY_NOTIFICATION_END_HOUR, DEFAULT_NOTIFICATION_END_HOUR)
+        return Settings(context).getNotificationEndHour()
     }
     
     fun setNotificationHours(context: Context, startHour: Int, endHour: Int) {
-        val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit()
-            .putInt(KEY_NOTIFICATION_START_HOUR, startHour)
-            .putInt(KEY_NOTIFICATION_END_HOUR, endHour)
-            .apply()
+        Settings(context).setNotificationHours(startHour, endHour)
     }
 }

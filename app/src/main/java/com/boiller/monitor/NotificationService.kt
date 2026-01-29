@@ -11,10 +11,10 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.boiller.monitor.api.ApiClient
-import com.boiller.monitor.api.DataRecord
-import com.boiller.monitor.utils.DateFormatter
+import com.boiller.monitor.shared.api.DataRecord
+import com.boiller.monitor.shared.utils.DateFormatter
 import com.boiller.monitor.utils.LightChangeHistory
-import com.boiller.monitor.utils.LightChangeEvent
+import com.boiller.monitor.shared.utils.LightChangeEvent
 import kotlinx.coroutines.*
 import java.util.*
 
@@ -147,8 +147,7 @@ class NotificationService : Service() {
     private suspend fun fetchLatestData(): DataRecord? = withContext(Dispatchers.IO) {
         try {
             val apiService = ApiClient.getApiService(this@NotificationService)
-            val response = apiService.getLatest()
-            if (response.isSuccessful) response.body() else null
+            apiService.getLatest()
         } catch (e: Exception) {
             Log.e(TAG, "Помилка при запиті до API", e)
             null
@@ -158,8 +157,7 @@ class NotificationService : Service() {
     private suspend fun fetchDataHistory(): List<DataRecord>? = withContext(Dispatchers.IO) {
         try {
             val apiService = ApiClient.getApiService(this@NotificationService)
-            val response = apiService.getData()
-            if (response.isSuccessful) response.body()?.data else null
+            apiService.getData().data
         } catch (e: Exception) {
             Log.e(TAG, "Помилка при запиті історії", e)
             null

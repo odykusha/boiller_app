@@ -1,13 +1,9 @@
 package com.boiller.monitor.utils
 
 import android.content.Context
+import com.boiller.monitor.shared.utils.LightChangeEvent
 import org.json.JSONArray
 import org.json.JSONObject
-
-data class LightChangeEvent(
-    val timestamp: String,
-    val hasLight: Boolean,
-)
 
 object LightChangeHistory {
     private const val PREFS_NAME = "notification_prefs"
@@ -107,4 +103,3 @@ object LightChangeHistory {
         prefs.edit().putString(KEY_HISTORY, arr.toString()).apply()
     }
 }
-

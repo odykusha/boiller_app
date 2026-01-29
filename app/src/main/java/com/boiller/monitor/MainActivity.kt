@@ -16,10 +16,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.boiller.monitor.api.ApiClient
-import com.boiller.monitor.api.DataRecord
+import com.boiller.monitor.shared.api.DataRecord
 import com.boiller.monitor.databinding.ActivityMainBinding
 import com.boiller.monitor.databinding.CardStatBinding
-import com.boiller.monitor.utils.DateFormatter
+import com.boiller.monitor.shared.utils.DateFormatter
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -202,18 +202,12 @@ class MainActivity : AppCompatActivity() {
                 val apiService = ApiClient.getApiService(this@MainActivity)
                 val response = apiService.getData()
                 
-                if (response.isSuccessful && response.body() != null) {
-                    val data = response.body()!!.data
-                    if (data.isNotEmpty()) {
-                        updateCharts(data)
-                        updateStats(data.last())
-                        toolbarUpdateTime.text = DateFormatter.formatTime(data.last().timestamp)
-                    } else {
-                        toolbarUpdateTime.text = "Немає даних"
-                    }
+                if (response.data.isNotEmpty()) {
+                    updateCharts(response.data)
+                    updateStats(response.data.last())
+                    toolbarUpdateTime.text = DateFormatter.formatTime(response.data.last().timestamp)
                 } else {
-                    toolbarUpdateTime.text = "Помилка завантаження"
-                    Toast.makeText(this@MainActivity, "Помилка завантаження даних", Toast.LENGTH_SHORT).show()
+                    toolbarUpdateTime.text = "Немає даних"
                 }
             } catch (e: Exception) {
                 toolbarUpdateTime.text = "Помилка підключення"
