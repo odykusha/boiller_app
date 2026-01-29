@@ -175,15 +175,25 @@ class NotificationService : Service() {
             val fromHasLight = hasLight(fromGridLoad)
             val toHasLight = hasLight(toGridLoad)
             
+            // Шукаємо останню зміну в історії від fromHasLight до toHasLight
+            // Проходимо з кінця до початку, щоб знайти найбільш недавню зміну
             for (i in sortedHistory.size - 1 downTo 1) {
                 val current = sortedHistory[i]
                 val previous = sortedHistory[i - 1]
                 
-                if (hasLight(previous.gridLoad) == fromHasLight && hasLight(current.gridLoad) == toHasLight) {
+                val prevHasLight = hasLight(previous.gridLoad)
+                val currHasLight = hasLight(current.gridLoad)
+                
+                // Знаходимо зміну від fromHasLight до toHasLight
+                if (prevHasLight == fromHasLight && currHasLight == toHasLight) {
+                    // Повертаємо час з API, який відповідає реальному часу зміни
                     return@withContext current.timestamp
                 }
             }
-            null
+            
+            // Якщо не знайшли точну зміну, шукаємо останній запис з новим статусом
+            // Це може статися, якщо зміна відбулася між опитуваннями
+            sortedHistory.findLast { hasLight(it.gridLoad) == toHasLight }?.timestamp
         } catch (e: Exception) {
             Log.e(TAG, "Помилка при пошуку часу зміни", e)
             null
@@ -295,13 +305,11 @@ class NotificationService : Service() {
         val previousHasLight = previousGridLoad?.let { hasLight(it) }
         
         if (previousGridLoad != null && previousHasLight != currentHasLight) {
+            // Шукаємо точний час зміни з історії API
             val exactChangeTimestamp = findGridLoadChangeTime(previousGridLoad, currentGridLoad)
             
-            val changeTimestamp = if (exactChangeTimestamp != null && exactChangeTimestamp >= data.timestamp) {
-                exactChangeTimestamp
-            } else {
-                data.timestamp
-            }
+            // Використовуємо час з API, якщо він знайдений, інакше використовуємо час поточного запису
+            val changeTimestamp = exactChangeTimestamp ?: data.timestamp
             
             saveStatusChangeTime(currentHasLight, changeTimestamp)
             LightChangeHistory.add(this@NotificationService, currentHasLight, changeTimestamp)

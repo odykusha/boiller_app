@@ -1,7 +1,10 @@
 package com.boiller.monitor
 
 import android.os.Bundle
+import android.view.Gravity
 import android.view.ViewGroup
+import android.widget.TableLayout
+import android.widget.TableRow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -93,28 +96,95 @@ class SettingsActivity : AppCompatActivity() {
                 text = "Немає даних"
                 setTextColor(getColor(R.color.text_secondary))
                 textSize = 14f
+                gravity = Gravity.CENTER
             }
             container.addView(tv)
             return
         }
 
-        events.forEach { ev ->
-            val emoji = if (ev.hasLight) "💡" else "🕯️"
-            val time = DateFormatter.formatTime(ev.timestamp)
-            val text = if (ev.hasLight) "$emoji Світло з'явилось о $time" else "$emoji Світло зникло о $time"
+        // Створюємо таблицю
+        val tableLayout = TableLayout(this).apply {
+            layoutParams = TableLayout.LayoutParams(
+                TableLayout.LayoutParams.MATCH_PARENT,
+                TableLayout.LayoutParams.WRAP_CONTENT
+            )
+            isStretchAllColumns = true
+            // Додаємо зовнішні границі до таблиці
+            background = getDrawable(R.drawable.table_border)
+        }
 
-            val tv = TextView(this).apply {
-                this.text = text
-                setTextColor(getColor(R.color.white))
-                textSize = 14f
-                layoutParams = ViewGroup.MarginLayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    bottomMargin = resources.displayMetrics.density.toInt() * 8
-                }
+        // Заголовок таблиці
+        val headerRow = TableRow(this).apply {
+            layoutParams = TableLayout.LayoutParams(
+                TableLayout.LayoutParams.MATCH_PARENT,
+                TableLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val headerEvent = createTableCell("Подія", true)
+        val headerTime = createTableCell("Час", true)
+        val headerDiff = createTableCell("Різниця", true)
+
+        headerRow.addView(headerEvent)
+        headerRow.addView(headerTime)
+        headerRow.addView(headerDiff)
+        tableLayout.addView(headerRow)
+
+        // Рядки з даними
+        events.forEachIndexed { index, ev ->
+            val row = TableRow(this).apply {
+                layoutParams = TableLayout.LayoutParams(
+                    TableLayout.LayoutParams.MATCH_PARENT,
+                    TableLayout.LayoutParams.WRAP_CONTENT
+                )
             }
-            container.addView(tv)
+
+            val emoji = if (ev.hasLight) "💡" else "🕯️"
+            val eventText = if (ev.hasLight) "З'явилось" else "Зникло"
+            val eventCellText = "$emoji $eventText"
+            val time = DateFormatter.formatTime(ev.timestamp)
+            
+            // Обчислюємо різницю часу
+            val timeDiff = if (index < events.size - 1) {
+                val previousEvent = events[index + 1]
+                DateFormatter.formatTimeDifference(ev.timestamp, previousEvent.timestamp) ?: "-"
+            } else {
+                "-"
+            }
+
+            val eventCell = createTableCell(eventCellText, false)
+            val timeCell = createTableCell(time, false)
+            val diffCell = createTableCell(timeDiff, false)
+
+            row.addView(eventCell)
+            row.addView(timeCell)
+            row.addView(diffCell)
+            tableLayout.addView(row)
+        }
+
+        container.addView(tableLayout)
+    }
+
+    private fun createTableCell(text: String, isHeader: Boolean): TextView {
+        return TextView(this).apply {
+            this.text = text
+            setTextColor(if (isHeader) getColor(R.color.primary_blue) else getColor(R.color.white))
+            textSize = if (isHeader) 14f else 13f
+            setTypeface(null, if (isHeader) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            gravity = Gravity.CENTER
+            setPadding(
+                (resources.displayMetrics.density * 8).toInt(),
+                (resources.displayMetrics.density * 8).toInt(),
+                (resources.displayMetrics.density * 8).toInt(),
+                (resources.displayMetrics.density * 8).toInt()
+            )
+            // Додаємо границі до комірок
+            background = getDrawable(R.drawable.table_cell_border)
+            layoutParams = TableRow.LayoutParams(
+                TableRow.LayoutParams.WRAP_CONTENT,
+                TableRow.LayoutParams.WRAP_CONTENT,
+                1f
+            )
         }
     }
     
