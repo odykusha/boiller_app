@@ -15,6 +15,7 @@ import com.boiller.monitor.shared.api.DataRecord
 import com.boiller.monitor.shared.utils.DateFormatter
 import com.boiller.monitor.utils.LightChangeHistory
 import com.boiller.monitor.shared.utils.LightChangeEvent
+import com.boiller.monitor.websocket.WebSocketService
 import kotlinx.coroutines.*
 import java.util.*
 
@@ -24,6 +25,7 @@ class NotificationService : Service() {
     private var updateJob: Job? = null
     private var consecutiveErrors = 0
     private var changeNotificationCounter = NOTIFICATION_ID_CHANGE
+    private lateinit var webSocketService: WebSocketService
     
     companion object {
         private const val TAG = "NotificationService"
@@ -66,6 +68,10 @@ class NotificationService : Service() {
         } catch (e: Exception) {
             startForeground(NOTIFICATION_ID_STATUS, notification)
         }
+        
+        // Ініціалізуємо WebSocket сервіс
+        webSocketService = WebSocketService.getInstance(this)
+        
         startMonitoring()
     }
     
@@ -112,6 +118,16 @@ class NotificationService : Service() {
     }
     
     private fun startMonitoring() {
+        seedLightHistoryIfNeeded()
+        
+        // Підключаємося до WebSocket для real-time оновлень
+        val serverUrl = ApiClient.getServerUrl(this)
+        webSocketService.connect(serverUrl)
+        
+        // Реєструємо BroadcastReceiver для обробки оновлень з WebSocket
+        registerWebSocketReceiver()
+        
+        // Fallback: Timer для оновлення якщо WebSocket не працює
         updateJob?.cancel()
         updateJob = serviceScope.launch {
             while (isActive) {
@@ -142,6 +158,83 @@ class NotificationService : Service() {
                 delay(60000)
             }
         }
+    }
+    
+    private fun registerWebSocketReceiver() {
+        val filter = android.content.IntentFilter().apply {
+            addAction("com.boiller.monitor.DATA_UPDATE")
+            addAction("com.boiller.monitor.STATUS_CHANGE")
+        }
+        
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: android.content.Intent?) {
+                when (intent?.action) {
+                    "com.boiller.monitor.DATA_UPDATE" -> {
+                        val timestamp = intent.getStringExtra("timestamp") ?: return
+                        val batterySoc = intent.getIntExtra("batterySoc", 0)
+                        val gridLoad = intent.getIntExtra("gridLoad", 0)
+                        val homeLoad = intent.getIntExtra("homeLoad", 0)
+                        val hasLight = intent.getBooleanExtra("hasLight", false)
+                        
+                        val data = DataRecord(
+                            timestamp = timestamp,
+                            batterySoc = batterySoc,
+                            gridLoad = gridLoad,
+                            homeLoad = homeLoad,
+                            gridStatus = hasLight
+                        )
+                        
+                        // Оновлюємо нотифікацію
+                        updateNotification(data)
+                    }
+                    "com.boiller.monitor.STATUS_CHANGE" -> {
+                        val hasLight = intent.getBooleanExtra("hasLight", false)
+                        val timestamp = intent.getStringExtra("timestamp") ?: return
+                        val batterySoc = intent.getIntExtra("batterySoc", 0)
+                        val gridLoad = intent.getIntExtra("gridLoad", 0)
+                        val homeLoad = intent.getIntExtra("homeLoad", 0)
+                        
+                        val data = DataRecord(
+                            timestamp = timestamp,
+                            batterySoc = batterySoc,
+                            gridLoad = gridLoad,
+                            homeLoad = homeLoad,
+                            gridStatus = hasLight
+                        )
+                        
+                        // Обробляємо зміну статусу
+                        handleStatusChangeFromWebSocket(hasLight, timestamp, data)
+                    }
+                }
+            }
+        }, filter)
+    }
+    
+    private fun handleStatusChangeFromWebSocket(hasLight: Boolean, timestamp: String, data: DataRecord) {
+        // Оновлюємо lastGridLoad
+        val previousGridLoad = lastGridLoad
+        lastGridLoad = data.gridLoad
+        
+        // Перевіряємо чи дійсно змінився статус (для безпеки)
+        val previousHasLight = previousGridLoad?.let { it > 0 }
+        if (previousHasLight != null && previousHasLight == hasLight) {
+            // Статус не змінився, просто оновлюємо дані
+            updateNotification(data)
+            return
+        }
+        
+        // Знайдено зміну статусу
+        val exactChangeTimestamp = findGridLoadChangeTime(
+            previousGridLoad ?: (if (hasLight) 0 else 1),
+            data.gridLoad
+        )
+        val changeTimestamp = exactChangeTimestamp ?: timestamp
+        
+        saveStatusChangeTime(hasLight, changeTimestamp)
+        LightChangeHistory.add(this@NotificationService, hasLight, changeTimestamp)
+        
+        val isTimeAllowed = isNotificationTimeAllowed()
+        showStatusChangeNotification(hasLight, changeTimestamp, isTimeAllowed)
     }
     
     private suspend fun fetchLatestData(): DataRecord? = withContext(Dispatchers.IO) {

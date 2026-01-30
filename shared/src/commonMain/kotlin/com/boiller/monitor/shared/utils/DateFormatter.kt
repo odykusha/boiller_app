@@ -49,7 +49,7 @@ object DateFormatter {
             val minutes = (totalSeconds % 3600) / 60
             val seconds = totalSeconds % 60
             
-            String.format("%02d:%02d:%02d", hours, minutes, seconds)
+            "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
         } catch (e: Exception) {
             null
         }

@@ -1,6 +1,9 @@
 package com.boiller.monitor
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -20,6 +23,7 @@ import com.boiller.monitor.shared.api.DataRecord
 import com.boiller.monitor.databinding.ActivityMainBinding
 import com.boiller.monitor.databinding.CardStatBinding
 import com.boiller.monitor.shared.utils.DateFormatter
+import com.boiller.monitor.websocket.WebSocketService
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -60,14 +64,62 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
         loadData()
         
-        // Автоматичне оновлення кожні 60 секунд
+        // Автоматичне оновлення кожні 60 секунд (fallback)
         startAutoRefresh()
+        
+        // Підключаємося до WebSocket для real-time оновлень
+        val serverUrl = ApiClient.getServerUrl(this)
+        WebSocketService.getInstance(this).connect(serverUrl)
+        
+        // Реєструємо BroadcastReceiver для оновлення UI з WebSocket
+        registerWebSocketReceiver()
         
         // Перевіряємо дозволи для нотифікацій
         checkNotificationPermission()
         
         // Запускаємо сервіс нотифікацій
         NotificationService.startService(this)
+    }
+    
+    private fun registerWebSocketReceiver() {
+        val filter = android.content.IntentFilter().apply {
+            addAction("com.boiller.monitor.DATA_UPDATE")
+        }
+        
+        registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: android.content.Intent?) {
+                if (intent?.action == "com.boiller.monitor.DATA_UPDATE") {
+                    val timestamp = intent.getStringExtra("timestamp") ?: return
+                    val batterySoc = intent.getIntExtra("batterySoc", 0)
+                    val gridLoad = intent.getIntExtra("gridLoad", 0)
+                    val homeLoad = intent.getIntExtra("homeLoad", 0)
+                    
+                    val data = DataRecord(
+                        timestamp = timestamp,
+                        batterySoc = batterySoc,
+                        gridLoad = gridLoad,
+                        homeLoad = homeLoad,
+                        gridStatus = gridLoad > 0
+                    )
+                    
+                    // Оновлюємо UI
+                    lifecycleScope.launch {
+                        updateUIWithData(data)
+                    }
+                }
+            }
+        }, filter)
+    }
+    
+    private suspend fun updateUIWithData(data: DataRecord) {
+        // Оновлюємо статистику
+        updateStats(data)
+        
+        // Оновлюємо час в toolbar
+        toolbarUpdateTime.text = DateFormatter.formatTime(data.timestamp)
+        
+        // Для повного оновлення графіків потрібно завантажити історію
+        // Але для швидкого оновлення можна просто оновити статистику
     }
     
     private fun checkNotificationPermission() {
@@ -372,6 +424,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         refreshTimer?.cancel()
+        // Відключаємо WebSocket при закритті додатку
+        WebSocketService.getInstance(this).disconnect()
         // Не зупиняємо сервіс - він має працювати постійно
     }
 }

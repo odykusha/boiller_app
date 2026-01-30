@@ -1,5 +1,6 @@
 package com.boiller.monitor.shared.settings
 
+import platform.Foundation.NSNumber
 import platform.Foundation.NSUserDefaults
 
 actual class Settings {
@@ -9,7 +10,7 @@ actual class Settings {
         const val KEY_SERVER_URL = "server_url"
         const val KEY_NOTIFICATION_START_HOUR = "notification_start_hour"
         const val KEY_NOTIFICATION_END_HOUR = "notification_end_hour"
-        const val DEFAULT_SERVER_URL = "http://192.168.50.100:8080/"
+        const val DEFAULT_SERVER_URL = "http://82.193.113.73:8080/"
         const val DEFAULT_NOTIFICATION_START_HOUR = 8
         const val DEFAULT_NOTIFICATION_END_HOUR = 22
     }
