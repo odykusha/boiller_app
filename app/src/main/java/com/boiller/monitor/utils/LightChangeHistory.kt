@@ -1,7 +1,7 @@
 package com.boiller.monitor.utils
 
 import android.content.Context
-import com.boiller.monitor.shared.utils.LightChangeEvent
+import com.boiller.monitor.utils.LightChangeEvent
 import org.json.JSONArray
 import org.json.JSONObject
 

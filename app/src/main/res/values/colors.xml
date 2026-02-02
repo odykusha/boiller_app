@@ -9,7 +9,7 @@
     <color name="white">#FFFFFFFF</color>
     
     <!-- Custom colors for Boiller Monitor -->
-    <color name="background_dark">#0A0E27</color>
+    <color name="background_dark">#0D1B2A</color> <!-- Темно-синій фон зоряного неба -->
     <color name="card_background">#1A1F3A</color>
     <color name="primary_blue">#00D4FF</color>
     <color name="primary_green">#00FF96</color>

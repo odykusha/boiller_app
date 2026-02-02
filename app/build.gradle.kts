@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    kotlin("plugin.serialization") version "2.2.10"
 }
 
 android {
@@ -50,10 +51,13 @@ android {
     }
 }
 
+// Створюємо задачу testClasses для сумісності з IDE та іншими інструментами
+tasks.register("testClasses") {
+    dependsOn("testDebugUnitTestClasses")
+    description = "Compiles test classes (alias for testDebugUnitTestClasses)"
+}
+
 dependencies {
-    // Shared module
-    implementation(project(":shared"))
-    
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -64,6 +68,18 @@ dependencies {
     
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    
+    // Ktor для HTTP клієнта
+    implementation("io.ktor:ktor-client-android:2.3.5")
+    implementation("io.ktor:ktor-client-core:2.3.5")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.5")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.5")
+    
+    // Kotlinx Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    
+    // DateTime
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
     
     // Charts
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")

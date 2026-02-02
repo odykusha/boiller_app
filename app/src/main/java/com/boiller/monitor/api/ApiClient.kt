@@ -1,8 +1,8 @@
 package com.boiller.monitor.api
 
 import android.content.Context
-import com.boiller.monitor.shared.api.ApiService
-import com.boiller.monitor.shared.settings.Settings
+import com.boiller.monitor.api.ApiService
+import com.boiller.monitor.settings.Settings
 
 object ApiClient {
     private var apiService: ApiService? = null

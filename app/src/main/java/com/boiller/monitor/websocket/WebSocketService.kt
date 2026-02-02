@@ -3,7 +3,7 @@ package com.boiller.monitor.websocket
 import android.content.Context
 import android.util.Log
 import com.boiller.monitor.api.ApiClient
-import com.boiller.monitor.shared.api.DataRecord
+import com.boiller.monitor.api.DataRecord
 import com.boiller.monitor.utils.LightChangeHistory
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -91,7 +91,7 @@ class WebSocketService private constructor(private val context: Context) {
                 // Оновлюємо дані в основному додатку через BroadcastReceiver
                 notifyDataUpdate(dataRecord)
                 
-                Log.d(TAG, "Оновлено дані через WebSocket: батарея=$batterySoc%, мережа=$gridLoadВт")
+                Log.d(TAG, "Оновлено дані через WebSocket: батарея=$batterySoc%, мережа=$gridLoad Вт")
             } catch (e: Exception) {
                 Log.e(TAG, "Помилка обробки data_update", e)
             }

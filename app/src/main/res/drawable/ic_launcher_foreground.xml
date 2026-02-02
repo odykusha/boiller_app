@@ -5,50 +5,117 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Battery icon (left side) -->
-    <group
-        android:translateX="30"
-        android:translateY="40">
-        <!-- Battery body -->
-        <path
-            android:fillColor="#00D4FF"
-            android:pathData="M-12,-10 L-12,10 L12,10 L12,-10 Z"/>
-        <!-- Battery fill (green, 95%) -->
-        <path
-            android:fillColor="#00FF96"
-            android:pathData="M-10,-8 L-10,8 L10,8 L10,-8 Z"/>
-        <!-- Battery terminal -->
-        <path
-            android:fillColor="#00D4FF"
-            android:pathData="M12,-3 L16,-3 L16,3 L12,3 Z"/>
-    </group>
+    <!-- Зоряне небо - зірки -->
+    <!-- Зірка 1 (верхній лівий кут) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15,20 L16,23 L19,23 L16.5,25 L17.5,28 L15,26 L12.5,28 L13.5,25 L11,23 L14,23 Z"/>
     
-    <!-- Lightning bolt (center) -->
+    <!-- Зірка 2 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,15 L30.5,17 L32.5,17 L31,18 L31.5,20 L30,19 L28.5,20 L29,18 L27.5,17 L29.5,17 Z"/>
+    
+    <!-- Зірка 3 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,18 L75.5,20 L77.5,20 L76,21 L76.5,23 L75,22 L73.5,23 L74,21 L72.5,20 L74.5,20 Z"/>
+    
+    <!-- Зірка 4 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M90,25 L90.5,27 L92.5,27 L91,28 L91.5,30 L90,29 L88.5,30 L89,28 L87.5,27 L89.5,27 Z"/>
+    
+    <!-- Зірка 5 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,75 L20.5,77 L22.5,77 L21,78 L21.5,80 L20,79 L18.5,80 L19,78 L17.5,77 L19.5,77 Z"/>
+    
+    <!-- Зірка 6 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M85,80 L85.5,82 L87.5,82 L86,83 L86.5,85 L85,84 L83.5,85 L84,83 L82.5,82 L84.5,82 Z"/>
+    
+    <!-- Зірка 7 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M25,90 L25.5,92 L27.5,92 L26,93 L26.5,95 L25,94 L23.5,95 L24,93 L22.5,92 L24.5,92 Z"/>
+    
+    <!-- Зірка 8 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,15 L80.5,17 L82.5,17 L81,18 L81.5,20 L80,19 L78.5,20 L79,18 L77.5,17 L79.5,17 Z"/>
+    
+    <!-- Додаткові маленькі зірки для атмосфери (використовуємо path замість circle) -->
+    <path android:fillColor="#FFFFFF" android:pathData="M12,35 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M40,25 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M65,30 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M95,40 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M18,60 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M50,85 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M35,95 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M70,90 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+    
+    <!-- Світлячок (центр) - збільшений -->
     <group
         android:translateX="54"
-        android:translateY="40">
+        android:translateY="54">
+        
+        <!-- Зовнішнє світіння (найбільше) - збільшено -->
         <path
-            android:fillColor="#00D4FF"
-            android:pathData="M-6,8 L-2,8 L0,0 L-4,0 L-6,-8 L6,-8 L4,0 L8,0 L6,8 L-2,8 Z"/>
-    </group>
-    
-    <!-- Light bulb (right side) -->
-    <group
-        android:translateX="78"
-        android:translateY="40">
-        <!-- Bulb shape -->
+            android:fillColor="#40FFEB3B"
+            android:pathData="M-18,-12 Q-18,-18 -12,-18 Q-6,-18 0,-18 Q6,-18 12,-18 Q18,-18 18,-12 Q18,-6 18,0 Q18,6 18,12 Q18,18 12,18 Q6,18 0,18 Q-6,18 -12,18 Q-18,18 -18,12 Q-18,6 -18,0 Q-18,-6 -18,-12 Z"/>
+        
+        <!-- Середнє світіння - збільшено -->
         <path
-            android:fillColor="#00D4FF"
-            android:pathData="M-8,-10 Q-8,-14 -4,-14 Q0,-14 0,-10 Q0,-6 4,-6 Q8,-6 8,-10 Q8,-14 4,-14 Q0,-14 0,-10 Q0,-6 -4,-6 Q-8,-6 -8,-10 Z"/>
-        <!-- Bulb base -->
+            android:fillColor="#80FFEB3B"
+            android:pathData="M-12,-9 Q-12,-15 -6,-15 Q0,-15 6,-15 Q12,-15 12,-9 Q12,-3 12,3 Q12,9 12,15 Q12,15 6,15 Q0,15 -6,15 Q-12,15 -12,9 Q-12,3 -12,-3 Q-12,-9 -12,-9 Z"/>
+        
+        <!-- Тіло світлячка (темно-коричневе) - збільшено -->
         <path
-            android:fillColor="#00D4FF"
-            android:pathData="M-4,-10 L-4,-6 L4,-6 L4,-10 L2,-10 L2,-8 L-2,-8 L-2,-10 Z"/>
-        <!-- Light rays -->
+            android:fillColor="#4A3728"
+            android:pathData="M-9,-3 Q-9,-9 -3,-9 Q3,-9 9,-3 Q9,3 3,3 Q-3,3 -9,-3 Z"/>
+        
+        <!-- Голова світлячка - збільшено -->
         <path
-            android:strokeColor="#00D4FF"
+            android:fillColor="#5D4037"
+            android:pathData="M-7.5,-9 Q-7.5,-13.5 -1.5,-13.5 Q4.5,-13.5 4.5,-9 Q4.5,-4.5 -1.5,-4.5 Q-7.5,-4.5 -7.5,-9 Z"/>
+        
+        <!-- Крила (прозорі з легким відтінком) - збільшено -->
+        <path
+            android:fillColor="#60FFFFFF"
+            android:pathData="M-12,-6 Q-15,-9 -12,-12 Q-9,-9 -6,-6 Q-9,-3 -12,-6 Z"/>
+        <path
+            android:fillColor="#60FFFFFF"
+            android:pathData="M12,-6 Q15,-9 12,-12 Q9,-9 6,-6 Q9,-3 12,-6 Z"/>
+        
+        <!-- Яскраве світіння світлячка (жовто-зелене) - збільшено -->
+        <path
+            android:fillColor="#B3FFEB3A"
+            android:pathData="M-6,0 Q-6,-6 0,-6 Q6,-6 6,0 Q6,6 0,6 Q-6,6 -6,0 Z"/>
+        
+        <!-- Найяскравіше ядро світіння - збільшено -->
+        <path
+            android:fillColor="#FFFFEB3B"
+            android:pathData="M-3,0 Q-3,-3 0,-3 Q3,-3 3,0 Q3,3 0,3 Q-3,3 -3,0 Z"/>
+        
+        <!-- Промені світла (від світлячка) - збільшено -->
+        <path
+            android:strokeColor="#80FFEB3B"
             android:strokeWidth="1.5"
-            android:pathData="M-12,-6 L-8,-6 M12,-6 L8,-6 M0,-18 L0,-14"/>
+            android:pathData="M-9,0 L-15,0 M9,0 L15,0 M0,-9 L0,-15 M-6,-6 L-10.5,-10.5 M6,-6 L10.5,-10.5 M-6,6 L-10.5,10.5 M6,6 L10.5,10.5"/>
+        
+        <!-- Очі світлячка - збільшено -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M-4.5,-12 Q-4.5,-13.5 -3,-13.5 Q-1.5,-13.5 -1.5,-12 Q-1.5,-10.5 -3,-10.5 Q-4.5,-10.5 -4.5,-12 Z"/>
+        <path
+            android:fillColor="#000000"
+            android:pathData="M4.5,-12 Q4.5,-13.5 3,-13.5 Q1.5,-13.5 1.5,-12 Q1.5,-10.5 3,-10.5 Q4.5,-10.5 4.5,-12 Z"/>
+        
+        <!-- Відблиски в очах - збільшено -->
+        <path android:fillColor="#FFFFFF" android:pathData="M-3.75,-12.75 m-0.45,0 a0.45,0.45 0 1,1 0.9,0 a0.45,0.45 0 1,1 -0.9,0"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M3.75,-12.75 m-0.45,0 a0.45,0.45 0 1,1 0.9,0 a0.45,0.45 0 1,1 -0.9,0"/>
     </group>
     
 </vector>

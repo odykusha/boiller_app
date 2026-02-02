@@ -1,50 +1,38 @@
-# Kotlin Multiplatform Mobile (KMM) Setup
+# Android App
 
-Проект було переписано під Kotlin Multiplatform Mobile для підтримки Android та iOS.
+Android додаток для моніторингу стану інвертора.
 
 ## Структура проекту
 
 ```
 boiller_app/
-├── app/                    # Android app модуль
-│   └── src/main/java/      # Android-специфічний код (UI, сервіси)
-├── shared/                 # Спільний модуль для Android та iOS
-│   └── src/
-│       ├── commonMain/     # Спільний код
-│       ├── androidMain/     # Android-специфічна реалізація
-│       └── iosMain/         # iOS-специфічна реалізація
-└── iosApp/                 # iOS проект (потрібно створити)
+└── app/                    # Android app модуль
+    └── src/main/java/      # Код додатку
+        ├── api/            # API клієнт та моделі даних
+        ├── settings/        # Налаштування
+        ├── utils/          # Утиліти
+        └── websocket/       # WebSocket сервіс
 ```
 
-## Що винесено в shared модуль
+## Компоненти
 
-- **API клієнт** (`ApiService`) - використовує Ktor замість Retrofit
+- **API клієнт** (`ApiService`) - використовує Ktor для HTTP запитів
 - **Моделі даних** (`DataRecord`, `DataResponse`)
-- **Утиліти** (`DateFormatter`)
-- **Налаштування** (`Settings`) - expect/actual для платформо-специфічного зберігання
-
-## Наступні кроки для iOS
-
-1. Створити iOS проект в Xcode
-2. Додати shared модуль як залежність
-3. Створити iOS UI (SwiftUI або UIKit)
-4. Використати shared модуль для бізнес-логіки
+- **Утиліти** (`DateFormatter`, `LightChangeEvent`)
+- **Налаштування** (`Settings`) - для зберігання налаштувань
+- **WebSocket сервіс** - для отримання реального часу оновлень
 
 ## Білд проекту
 
-### Android
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-### iOS (після створення iOS проекту)
-```bash
-./gradlew :shared:embedAndSignAppleFrameworkForXcode
-```
-
 ## Залежності
 
-- **Ktor** - для HTTP запитів (замість Retrofit)
+- **Ktor** - для HTTP запитів
 - **Kotlinx Serialization** - для серіалізації JSON
 - **Kotlinx DateTime** - для роботи з датами
 - **Kotlinx Coroutines** - для асинхронних операцій
+- **MPAndroidChart** - для відображення графіків
+- **Socket.IO** - для WebSocket з'єднань

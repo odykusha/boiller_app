@@ -11,10 +11,10 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.boiller.monitor.api.ApiClient
-import com.boiller.monitor.shared.api.DataRecord
-import com.boiller.monitor.shared.utils.DateFormatter
+import com.boiller.monitor.api.DataRecord
+import com.boiller.monitor.utils.DateFormatter
 import com.boiller.monitor.utils.LightChangeHistory
-import com.boiller.monitor.shared.utils.LightChangeEvent
+import com.boiller.monitor.utils.LightChangeEvent
 import com.boiller.monitor.websocket.WebSocketService
 import kotlinx.coroutines.*
 import java.util.*
@@ -118,7 +118,10 @@ class NotificationService : Service() {
     }
     
     private fun startMonitoring() {
-        seedLightHistoryIfNeeded()
+        // Seed light history в корутині
+        serviceScope.launch {
+            seedLightHistoryIfNeeded()
+        }
         
         // Підключаємося до WebSocket для real-time оновлень
         val serverUrl = ApiClient.getServerUrl(this)
@@ -166,6 +169,12 @@ class NotificationService : Service() {
             addAction("com.boiller.monitor.STATUS_CHANGE")
         }
         
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
+        } else {
+            0
+        }
+        
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: android.content.Intent?) {
                 when (intent?.action) {
@@ -207,7 +216,7 @@ class NotificationService : Service() {
                     }
                 }
             }
-        }, filter)
+        }, filter, flags)
     }
     
     private fun handleStatusChangeFromWebSocket(hasLight: Boolean, timestamp: String, data: DataRecord) {
@@ -223,18 +232,20 @@ class NotificationService : Service() {
             return
         }
         
-        // Знайдено зміну статусу
-        val exactChangeTimestamp = findGridLoadChangeTime(
-            previousGridLoad ?: (if (hasLight) 0 else 1),
-            data.gridLoad
-        )
-        val changeTimestamp = exactChangeTimestamp ?: timestamp
-        
-        saveStatusChangeTime(hasLight, changeTimestamp)
-        LightChangeHistory.add(this@NotificationService, hasLight, changeTimestamp)
-        
-        val isTimeAllowed = isNotificationTimeAllowed()
-        showStatusChangeNotification(hasLight, changeTimestamp, isTimeAllowed)
+        // Знайдено зміну статусу - викликаємо suspend функцію з корутини
+        serviceScope.launch {
+            val exactChangeTimestamp = findGridLoadChangeTime(
+                previousGridLoad ?: (if (hasLight) 0 else 1),
+                data.gridLoad
+            )
+            val changeTimestamp = exactChangeTimestamp ?: timestamp
+            
+            saveStatusChangeTime(hasLight, changeTimestamp)
+            LightChangeHistory.add(this@NotificationService, hasLight, changeTimestamp)
+            
+            val isTimeAllowed = isNotificationTimeAllowed()
+            showStatusChangeNotification(hasLight, changeTimestamp, isTimeAllowed)
+        }
     }
     
     private suspend fun fetchLatestData(): DataRecord? = withContext(Dispatchers.IO) {

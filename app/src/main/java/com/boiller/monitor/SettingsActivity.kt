@@ -10,7 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.boiller.monitor.api.ApiClient
 import com.boiller.monitor.databinding.ActivitySettingsBinding
-import com.boiller.monitor.shared.utils.DateFormatter
+import com.boiller.monitor.utils.DateFormatter
 import com.boiller.monitor.utils.LightChangeHistory
 
 class SettingsActivity : AppCompatActivity() {

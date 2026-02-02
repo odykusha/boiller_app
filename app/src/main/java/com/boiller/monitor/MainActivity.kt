@@ -19,10 +19,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.boiller.monitor.api.ApiClient
-import com.boiller.monitor.shared.api.DataRecord
+import com.boiller.monitor.api.DataRecord
 import com.boiller.monitor.databinding.ActivityMainBinding
 import com.boiller.monitor.databinding.CardStatBinding
-import com.boiller.monitor.shared.utils.DateFormatter
+import com.boiller.monitor.utils.DateFormatter
 import com.boiller.monitor.websocket.WebSocketService
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
@@ -86,6 +86,12 @@ class MainActivity : AppCompatActivity() {
             addAction("com.boiller.monitor.DATA_UPDATE")
         }
         
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_NOT_EXPORTED
+        } else {
+            0
+        }
+        
         registerReceiver(object : android.content.BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: android.content.Intent?) {
                 if (intent?.action == "com.boiller.monitor.DATA_UPDATE") {
@@ -108,7 +114,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-        }, filter)
+        }, filter, flags)
     }
     
     private suspend fun updateUIWithData(data: DataRecord) {

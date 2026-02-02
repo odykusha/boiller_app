@@ -17,4 +17,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "Boiller Monitor"
 include(":app")
-include(":shared")
