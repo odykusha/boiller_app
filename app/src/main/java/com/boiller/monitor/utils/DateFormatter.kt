@@ -28,6 +28,42 @@ object DateFormatter {
     }
     
     /**
+     * Підпис для довгих періодів (7d): dd.MM HH:mm
+     */
+    fun formatDateTime(timestamp: String): String {
+        val parsed = parseTimestamp(timestamp) ?: return formatTime(timestamp)
+        val day = parsed.dayOfMonth.toString().padStart(2, '0')
+        val month = parsed.monthNumber.toString().padStart(2, '0')
+        val hour = parsed.hour.toString().padStart(2, '0')
+        val minute = parsed.minute.toString().padStart(2, '0')
+        return "$day.$month $hour:$minute"
+    }
+
+    /**
+     * Скільки хвилин минуло від timestamp до зараз (null, якщо не розпарсився)
+     */
+    fun minutesSince(timestamp: String): Long? {
+        val parsed = parseTimestamp(timestamp) ?: return null
+        val instant = parsed.toInstant(TimeZone.currentSystemDefault())
+        val now = kotlinx.datetime.Clock.System.now()
+        return (now - instant).inWholeMinutes
+    }
+
+    /**
+     * Текст попередження, якщо дані старші за 5 хвилин, інакше null
+     */
+    fun staleWarning(timestamp: String): String? {
+        val minutes = minutesSince(timestamp) ?: return null
+        if (minutes < 5) return null
+        val age = when {
+            minutes < 60 -> "$minutes хв"
+            minutes < 24 * 60 -> "${minutes / 60} год"
+            else -> "${minutes / 60 / 24} дн"
+        }
+        return "⚠ $age"
+    }
+
+    /**
      * Обчислює різницю часу між двома timestamp у форматі hh:mm:ss
      */
     fun formatTimeDifference(laterTimestamp: String, earlierTimestamp: String): String? {

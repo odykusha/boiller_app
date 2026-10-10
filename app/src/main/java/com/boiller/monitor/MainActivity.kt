@@ -33,9 +33,18 @@ import java.util.Timer
 import java.util.TimerTask
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        private const val KEY_CURRENT_HOURS = "currentHours"
+    }
+    
     private lateinit var binding: ActivityMainBinding
     private var refreshTimer: Timer? = null
     private lateinit var toolbarUpdateTime: TextView
+    // Поточний період графіків у годинах (2h / 12h / 24h / 7d)
+    private var currentHours = 24
+    // Активний запит історії: скасовуємо перед новим, щоб пізня відповідь
+    // старого періоду не перезаписала графіки
+    private var loadJob: kotlinx.coroutines.Job? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,6 +59,8 @@ class MainActivity : AppCompatActivity() {
             text = "-"
             setTextColor(getColor(R.color.text_secondary))
             textSize = 14f
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = androidx.appcompat.widget.Toolbar.LayoutParams(
                 androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT,
                 androidx.appcompat.widget.Toolbar.LayoutParams.WRAP_CONTENT
@@ -59,6 +70,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.toolbar.addView(toolbarUpdateTime)
+        
+        // Відновлюємо період після перестворення Activity (поворот, зміна теми)
+        currentHours = savedInstanceState?.getInt(KEY_CURRENT_HOURS) ?: 24
+        binding.periodToggle.check(
+            when (currentHours) {
+                2 -> R.id.period2h
+                12 -> R.id.period12h
+                7 * 24 -> R.id.period7d
+                else -> R.id.period24h
+            }
+        )
         
         setupCharts()
         setupClickListeners()
@@ -122,7 +144,7 @@ class MainActivity : AppCompatActivity() {
         updateStats(data)
         
         // Оновлюємо час в toolbar
-        toolbarUpdateTime.text = DateFormatter.formatTime(data.timestamp)
+        showUpdateTime(data.timestamp)
         
         // Для повного оновлення графіків потрібно завантажити історію
         // Але для швидкого оновлення можна просто оновити статистику
@@ -251,34 +273,79 @@ class MainActivity : AppCompatActivity() {
         binding.fabRefresh.setOnClickListener {
             loadData()
         }
+        binding.periodToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            currentHours = when (checkedId) {
+                R.id.period2h -> 2
+                R.id.period12h -> 12
+                R.id.period7d -> 7 * 24
+                else -> 24
+            }
+            loadData()
+        }
     }
     
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(KEY_CURRENT_HOURS, currentHours)
+    }
+    
+    // Службовий текст у toolbar (завантаження, помилка) — нейтральним кольором
+    private fun showStatusText(text: String) {
+        toolbarUpdateTime.text = text
+        toolbarUpdateTime.setTextColor(getColor(R.color.text_secondary))
+    }
+    
+    // Час останнього запису; якщо дані застарілі — червоним з попередженням.
+    // Попередження попереду, щоб не обрізалось на вузькому екрані
+    private fun showUpdateTime(timestamp: String) {
+        val warning = DateFormatter.staleWarning(timestamp)
+        if (warning == null) {
+            toolbarUpdateTime.text = DateFormatter.formatTime(timestamp)
+            toolbarUpdateTime.setTextColor(getColor(R.color.text_secondary))
+        } else {
+            toolbarUpdateTime.text = "$warning · ${DateFormatter.formatDateTime(timestamp)}"
+            toolbarUpdateTime.setTextColor(getColor(R.color.stale_warning))
+        }
+    }
+
     private fun loadData() {
-        lifecycleScope.launch {
+        // Скасовуємо попередній запит: пізня відповідь старого періоду
+        // не має перезаписати графіки нового
+        loadJob?.cancel()
+        // Фіксуємо період на момент запиту, щоб підписи осі відповідали даним
+        val hours = currentHours
+        loadJob = lifecycleScope.launch {
             try {
-                toolbarUpdateTime.text = "Завантаження..."
+                showStatusText("Завантаження...")
                 val apiService = ApiClient.getApiService(this@MainActivity)
-                val response = apiService.getData()
+                val response = apiService.getData(hours)
                 
                 if (response.data.isNotEmpty()) {
-                    updateCharts(response.data)
+                    updateCharts(response.data, hours)
                     updateStats(response.data.last())
-                    toolbarUpdateTime.text = DateFormatter.formatTime(response.data.last().timestamp)
+                    showUpdateTime(response.data.last().timestamp)
                 } else {
-                    toolbarUpdateTime.text = "Немає даних"
+                    showStatusText("Немає даних")
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                toolbarUpdateTime.text = "Помилка підключення"
+                showStatusText("Помилка підключення")
                 Toast.makeText(this@MainActivity, "Помилка: ${e.message}", Toast.LENGTH_SHORT).show()
                 e.printStackTrace()
             }
         }
     }
     
-    private fun updateCharts(data: List<DataRecord>) {
+    private fun updateCharts(data: List<DataRecord>, hours: Int) {
         if (data.isEmpty()) return
         
-        val labels = data.map { DateFormatter.formatTime(it.timestamp) }
+        // Для періодів довше доби в підписі потрібна дата
+        val labels = data.map {
+            if (hours > 24) DateFormatter.formatDateTime(it.timestamp)
+            else DateFormatter.formatTime(it.timestamp)
+        }
         val batteryEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.batterySoc.toFloat()) }
         val gridEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.gridLoad.toFloat()) }
         val homeEntries = data.mapIndexed { index, record -> Entry(index.toFloat(), record.homeLoad.toFloat()) }
@@ -421,10 +488,26 @@ class MainActivity : AppCompatActivity() {
         refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 runOnUiThread {
-                    loadData()
+                    refreshLatest()
                 }
             }
         }, 60000, 60000) // Кожні 60 секунд
+    }
+    
+    // Фонове оновлення: лише останній запис, без перекачування всієї історії.
+    // Повна історія вантажиться при зміні періоду або ручному оновленні
+    private fun refreshLatest() {
+        lifecycleScope.launch {
+            try {
+                val apiService = ApiClient.getApiService(this@MainActivity)
+                val latest = apiService.getLatest()
+                updateStats(latest)
+                showUpdateTime(latest.timestamp)
+            } catch (e: Exception) {
+                // Тихо ігноруємо: наступна спроба за 60 секунд
+                e.printStackTrace()
+            }
+        }
     }
     
     override fun onDestroy() {

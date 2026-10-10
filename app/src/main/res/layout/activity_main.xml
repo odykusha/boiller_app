@@ -33,6 +33,58 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Перемикач періоду графіків -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/periodToggle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                app:checkedButton="@id/period24h">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/period2h"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="2h"
+                    android:textColor="@color/primary_blue"
+                    app:strokeColor="@color/primary_blue" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/period12h"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="12h"
+                    android:textColor="@color/primary_blue"
+                    app:strokeColor="@color/primary_blue" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/period24h"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="24h"
+                    android:textColor="@color/primary_blue"
+                    app:strokeColor="@color/primary_blue" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/period7d"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="7d"
+                    android:textColor="@color/primary_blue"
+                    app:strokeColor="@color/primary_blue" />
+
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
             <!-- Stats Cards -->
             <LinearLayout
                 android:layout_width="match_parent"

@@ -18,8 +18,10 @@ class ApiService(private val baseUrl: String) {
         }
     }
     
-    suspend fun getData(): DataResponse {
-        return client.get("$baseUrl/api/data").body()
+    suspend fun getData(hours: Int = 24): DataResponse {
+        return client.get("$baseUrl/api/data") {
+            parameter("hours", hours)
+        }.body()
     }
     
     suspend fun getLatest(): DataRecord {

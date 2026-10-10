@@ -17,4 +17,5 @@
     <color name="battery_color">#4CAF50</color>
     <color name="grid_color">#F44336</color>
     <color name="home_color">#2196F3</color>
+    <color name="stale_warning">#FF6B6B</color>
 </resources>
