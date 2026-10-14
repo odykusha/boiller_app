@@ -33,8 +33,12 @@ class NotificationService : Service() {
         private const val NOTIFICATION_ID_CHANGE = 2
         private const val CHANNEL_ID_STATUS = "boiller_monitor_status_channel"
         private const val CHANNEL_ID_CHANGE = "boiller_monitor_change_channel"
+        // Окремий канал для нічних сповіщень: на Android 8+ звук/вібрацію
+        // визначає канал, тому setSilent() на HIGH-каналі не гарантує тишу
+        private const val CHANNEL_ID_CHANGE_QUIET = "boiller_monitor_change_quiet_channel"
         private const val CHANNEL_NAME_STATUS = "Теперішній статус"
         private const val CHANNEL_NAME_CHANGE = "Зміни по світлу"
+        private const val CHANNEL_NAME_CHANGE_QUIET = "Зміни по світлу (тихо, поза дозволеним часом)"
         private const val PREFS_NAME = "notification_prefs"
         private const val KEY_LIGHT_DISAPPEARED_TIME = "light_disappeared_time"
         private const val KEY_LIGHT_APPEARED_TIME = "light_appeared_time"
@@ -112,8 +116,20 @@ class NotificationService : Service() {
                 )
             }
             
+            val quietChangeChannel = NotificationChannel(
+                CHANNEL_ID_CHANGE_QUIET,
+                CHANNEL_NAME_CHANGE_QUIET,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Зміна статусу світла поза дозволеним часом: без звуку й вібрації"
+                setShowBadge(true)
+                enableVibration(false)
+                setSound(null, null)
+            }
+
             notificationManager.createNotificationChannel(statusChannel)
             notificationManager.createNotificationChannel(changeChannel)
+            notificationManager.createNotificationChannel(quietChangeChannel)
         }
     }
     
@@ -486,11 +502,13 @@ class NotificationService : Service() {
         val formattedTime = DateFormatter.formatTime(changeTimestamp)
         val title = if (hasLight) "💡 Світло з'явилося о $formattedTime" else "🕯️ Світло зникло о $formattedTime"
         
-        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID_CHANGE)
+        val channelId = if (withSound) CHANNEL_ID_CHANGE else CHANNEL_ID_CHANGE_QUIET
+        val priority = if (withSound) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(createPendingIntent(1))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(priority)
             .setAutoCancel(true)
         
         if (!withSound) {

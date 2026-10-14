@@ -281,6 +281,12 @@ class MainActivity : AppCompatActivity() {
                 R.id.period7d -> 7 * 24
                 else -> 24
             }
+            // Новий період — скидаємо зум/прокрутку, бо старий масштаб
+            // розрахований під іншу кількість точок
+            listOf(binding.batteryChart, binding.gridChart, binding.homeChart).forEach { chart ->
+                chart.fitScreen()
+                chart.highlightValue(null, false)
+            }
             loadData()
         }
     }
@@ -360,7 +366,7 @@ class MainActivity : AppCompatActivity() {
             setDrawFilled(true)
             fillColor = batteryColor
             fillAlpha = 60
-            mode = LineDataSet.Mode.CUBIC_BEZIER
+            mode = LineDataSet.Mode.HORIZONTAL_BEZIER // без «провалів» нижче реальних точок
             valueTextColor = getColor(R.color.text_secondary)
             valueTextSize = 10f
         }
@@ -396,7 +402,7 @@ class MainActivity : AppCompatActivity() {
             setDrawFilled(true)
             fillColor = gridColor
             fillAlpha = 60
-            mode = LineDataSet.Mode.CUBIC_BEZIER
+            mode = LineDataSet.Mode.HORIZONTAL_BEZIER // без «провалів» нижче реальних точок
             valueTextColor = getColor(R.color.text_secondary)
             valueTextSize = 10f
         }
@@ -432,7 +438,7 @@ class MainActivity : AppCompatActivity() {
             setDrawFilled(true)
             fillColor = homeColor
             fillAlpha = 60
-            mode = LineDataSet.Mode.CUBIC_BEZIER
+            mode = LineDataSet.Mode.HORIZONTAL_BEZIER // без «провалів» нижче реальних точок
             valueTextColor = getColor(R.color.text_secondary)
             valueTextSize = 10f
         }
