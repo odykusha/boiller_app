@@ -26,6 +26,10 @@ class NotificationService : Service() {
     private var consecutiveErrors = 0
     private var changeNotificationCounter = NOTIFICATION_ID_CHANGE
     private lateinit var webSocketService: WebSocketService
+    // Детектор «зависання»: останні значення з інвертора і час, коли вони змінились
+    private var lastValues: Triple<Int, Int, Int>? = null
+    private var lastValuesChangedAt = 0L
+    private var stallAlertShown = false
     
     companion object {
         private const val TAG = "NotificationService"
@@ -42,6 +46,9 @@ class NotificationService : Service() {
         private const val PREFS_NAME = "notification_prefs"
         private const val KEY_LIGHT_DISAPPEARED_TIME = "light_disappeared_time"
         private const val KEY_LIGHT_APPEARED_TIME = "light_appeared_time"
+        // Якщо значення не змінюються довше — інвертор, ймовірно, завис
+        private const val STALL_TIMEOUT_MS = 10 * 60 * 1000L
+        private const val NOTIFICATION_ID_STALL = 3
         
         fun startService(context: Context) {
             val intent = Intent(context, NotificationService::class.java)
@@ -160,6 +167,7 @@ class NotificationService : Service() {
                         }
                         
                         checkGridLoadChange(data)
+                        checkStalledData(data)
                         updateNotification(data)
                     } else {
                         consecutiveErrors++
@@ -209,6 +217,7 @@ class NotificationService : Service() {
                             gridStatus = hasLight
                         )
                         
+                        checkStalledData(data)
                         // Оновлюємо нотифікацію
                         updateNotification(data)
                     }
@@ -343,6 +352,43 @@ class NotificationService : Service() {
     }
     
     private fun hasLight(gridLoad: Int): Boolean = gridLoad > 0
+
+    /**
+     * Перевіряє, чи змінюються дані з інвертора.
+     * Якщо батарея, мережа і дім не змінились за STALL_TIMEOUT_MS —
+     * показуємо гучний алерт (і вночі теж). Одне сповіщення на одне зависання.
+     */
+    private fun checkStalledData(data: DataRecord) {
+        val values = Triple(data.batterySoc, data.gridLoad, data.homeLoad)
+        val now = System.currentTimeMillis()
+
+        if (values != lastValues) {
+            lastValues = values
+            lastValuesChangedAt = now
+            stallAlertShown = false
+            return
+        }
+
+        val stalledMs = now - lastValuesChangedAt
+        if (stalledMs >= STALL_TIMEOUT_MS && !stallAlertShown) {
+            stallAlertShown = true
+            showStallNotification(stalledMs / 60000)
+        }
+    }
+
+    private fun showStallNotification(stalledMinutes: Long) {
+        // Завжди гучний канал: зависання інвертора важливіше за тихі години
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID_CHANGE)
+            .setContentTitle("⚠️ Інвертор завис?")
+            .setContentText("Дані не змінюються вже $stalledMinutes хв")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(createPendingIntent(2))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID_STALL, notification)
+    }
     
     private fun updateNotification(data: DataRecord) {
         try {
